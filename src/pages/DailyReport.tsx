@@ -299,7 +299,7 @@ export default function DailyReport() {
 
   return (
     <div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased min-h-screen flex flex-col items-center">
-      <div className="relative flex min-h-screen w-full max-w-md flex-col overflow-x-hidden shadow-2xl bg-background-light dark:bg-background-dark">
+      <div className="relative flex min-h-screen w-full max-w-md flex-col overflow-x-auto shadow-2xl bg-background-light dark:bg-background-dark">
         <header className="sticky top-0 z-10 flex items-center bg-background-light dark:bg-background-dark border-b border-slate-200 dark:border-slate-800 p-4">
           <button 
             onClick={() => navigate(-1)}

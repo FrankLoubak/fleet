@@ -27,7 +27,7 @@ export default function Dashboard() {
   });
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState('all');
-  const [selectedPieVehicleId, setSelectedPieVehicleId] = useState<string>('');
+  const [selectedComparisonVehicleId, setSelectedComparisonVehicleId] = useState<string>('');
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,6 +39,7 @@ export default function Dashboard() {
     maintenancePrev: 0,
     spendingData: [] as any[],
     participationData: [] as any[],
+    comparisonData: [] as any[],
     vehicleSpendingData: [] as any[],
     recentActivities: [] as any[]
   });
@@ -175,12 +176,37 @@ export default function Dashboard() {
         return { id: v.id, name: v.plate, fuel, maintenance, total: fuel + maintenance };
       }).sort((a, b) => b.total - a.total);
 
-      const participationVehicle = vehicleSpending.find(v => v.id === selectedPieVehicleId) || vehicleSpending[0] || { name: 'N/A', total: 0 };
-      const othersTotal = vehicleSpending.filter(v => v.id !== selectedPieVehicleId).reduce((acc, curr) => acc + curr.total, 0);
+      // Participation Data (Fleet vs Selected)
+      const totalFleetSpending = vehicleSpending.reduce((acc, curr) => acc + curr.total, 0);
+      const selectedVehicleSpending = vehicleSpending.find(v => v.id === selectedVehicleId)?.total || 0;
+      const selectedVehicleName = vehicles.find(v => v.id === selectedVehicleId)?.plate || 'Veículo Selecionado';
 
       const participationData = [
-        { name: `${participationVehicle.name}`, value: participationVehicle.total, color: '#1152d4' },
-        { name: 'Restante da Frota', value: othersTotal, color: '#334155' },
+        { 
+          name: selectedVehicleId === 'all' ? 'Frota Total' : selectedVehicleName, 
+          value: selectedVehicleId === 'all' ? totalFleetSpending : selectedVehicleSpending, 
+          color: '#1152d4' 
+        },
+        { 
+          name: 'Restante da Frota', 
+          value: selectedVehicleId === 'all' ? 0 : Math.max(0, totalFleetSpending - selectedVehicleSpending), 
+          color: '#334155' 
+        },
+      ];
+
+      // Comparison Data (Selected vs Comparison)
+      const comparisonVehicle = vehicleSpending.find(v => v.id === selectedComparisonVehicleId) || { name: 'Selecione', total: 0 };
+      const comparisonData = [
+        { 
+          name: selectedVehicleId === 'all' ? 'Frota (Média/Total)' : selectedVehicleName, 
+          value: selectedVehicleId === 'all' ? totalFleetSpending : selectedVehicleSpending, 
+          color: '#1152d4' 
+        },
+        { 
+          name: comparisonVehicle.name === 'Selecione' ? 'Comparação' : comparisonVehicle.name, 
+          value: comparisonVehicle.total, 
+          color: '#f59e0b' 
+        },
       ];
 
       // Recent Activities (filtered)
@@ -238,6 +264,7 @@ export default function Dashboard() {
         maintenancePrev,
         spendingData: last12Months,
         participationData,
+        comparisonData,
         vehicleSpendingData: vehicleSpending.slice(0, 5),
         recentActivities
       });
@@ -276,8 +303,13 @@ export default function Dashboard() {
       }
 
       setVehicles(currentVehicles || []);
-      if (currentVehicles && currentVehicles.length > 0 && !selectedPieVehicleId) {
-        setSelectedPieVehicleId(currentVehicles[0].id);
+      if (currentVehicles && currentVehicles.length > 0) {
+        if (!selectedComparisonVehicleId) {
+          // Set a default comparison vehicle that is different from the first one if possible
+          const firstId = currentVehicles[0].id;
+          const secondId = currentVehicles.length > 1 ? currentVehicles[1].id : firstId;
+          setSelectedComparisonVehicleId(secondId);
+        }
       }
     };
     initDashboard();
@@ -287,7 +319,7 @@ export default function Dashboard() {
     if (currentUser) {
       loadData();
     }
-  }, [currentUser, startDate, endDate, selectedVehicleId, selectedPieVehicleId, vehicles]);
+  }, [currentUser, startDate, endDate, selectedVehicleId, selectedComparisonVehicleId, vehicles]);
 
   const handleUpdateDashboard = () => {
     loadData();
@@ -299,8 +331,8 @@ export default function Dashboard() {
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
       <Sidebar />
       
-      <main className="flex-1 flex flex-col overflow-y-auto">
-        <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-10">
+      <main className="flex-1 flex flex-col overflow-auto">
+        <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-10 min-w-[1100px]">
           <div className="flex flex-col">
             <h2 className="text-lg font-bold dark:text-white">Dashboard de Frota</h2>
             <span className="text-[10px] text-blue-500 font-mono select-all cursor-help" title="Seu ID de Usuário para o script SQL">
@@ -328,11 +360,11 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <div className="p-8 space-y-8">
+        <div className="p-8 space-y-8 min-w-[1100px]">
           {/* Filters and Stats */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-4 flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-4">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-slate-500">Veículo</label>
                   <button 
@@ -444,8 +476,8 @@ export default function Dashboard() {
           </div>
 
           {/* Charts Row 1 */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="card p-6 lg:col-span-2">
+          <div className="grid grid-cols-1 gap-8">
+            <div className="card p-6">
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h3 className="font-bold text-lg dark:text-white">Evolução de Gastos</h3>
@@ -490,71 +522,131 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="card p-6 flex flex-col">
-              <div className="flex items-start justify-between mb-1">
-                <div>
-                  <h3 className="font-bold text-lg dark:text-white">Participação no Gasto</h3>
-                  <p className="text-sm text-slate-500">Veículo vs Resto da Frota</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-400">
-                    <Search size={14} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Pie Chart 1: Fleet vs Selected */}
+              <div className="card p-6 flex flex-col">
+                <div className="flex items-start justify-between mb-1">
+                  <div>
+                    <h3 className="font-bold text-lg dark:text-white">Participação no Gasto</h3>
+                    <p className="text-sm text-slate-500">Veículo vs Resto da Frota</p>
                   </div>
-                  <select 
-                    className="bg-transparent border-none text-xs font-bold p-1 focus:ring-0 outline-none dark:text-white cursor-pointer hover:text-primary transition-colors"
-                    value={selectedPieVehicleId}
-                    onChange={(e) => setSelectedPieVehicleId(e.target.value)}
-                  >
-                    {vehicles.map(v => (
-                      <option key={v.id} value={v.id} className="dark:bg-slate-900">{v.plate} - {v.model}</option>
+                </div>
+                <div className="flex-1 flex flex-col items-center justify-center relative mt-4">
+                  {loading && (
+                    <div className="absolute inset-0 z-10 bg-white/50 dark:bg-background-dark/50 backdrop-blur-[1px] flex items-center justify-center rounded-2xl">
+                      <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                    </div>
+                  )}
+                  <div className="h-48 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={stats.participationData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {stats.participationData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-3xl font-bold dark:text-white">
+                        {stats.participationData[0]?.value > 0 || stats.participationData[1]?.value > 0 
+                          ? ((stats.participationData[0].value / (stats.participationData[0].value + stats.participationData[1].value)) * 100).toFixed(0) 
+                          : '0'}%
+                      </span>
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">da frota</span>
+                    </div>
+                  </div>
+                  <div className="w-full mt-8 space-y-3">
+                    {stats.participationData.map((item) => (
+                      <div key={item.name} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></span>
+                          <span className="dark:text-slate-300 truncate max-w-[150px]">{item.name}</span>
+                        </div>
+                        <span className="font-bold dark:text-white">R$ {item.value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
+                      </div>
                     ))}
-                  </select>
+                  </div>
                 </div>
               </div>
-              <div className="flex-1 flex flex-col items-center justify-center relative mt-4">
-                {loading && (
-                  <div className="absolute inset-0 z-10 bg-white/50 dark:bg-background-dark/50 backdrop-blur-[1px] flex items-center justify-center rounded-2xl">
-                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
+
+              {/* Pie Chart 2: Selected vs Comparison */}
+              <div className="card p-6 flex flex-col">
+                <div className="flex items-start justify-between mb-1">
+                  <div>
+                    <h3 className="font-bold text-lg dark:text-white">Comparativo de Veículos</h3>
+                    <p className="text-sm text-slate-500">Comparação direta entre dois veículos</p>
                   </div>
-                )}
-                <div className="h-48 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={stats.participationData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {stats.participationData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-3xl font-bold dark:text-white">
-                      {stats.participationData[0]?.value > 0 || stats.participationData[1]?.value > 0 
-                        ? ((stats.participationData[0].value / (stats.participationData[0].value + stats.participationData[1].value)) * 100).toFixed(0) 
-                        : '0'}%
-                    </span>
-                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">da frota</span>
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-400">
+                      <Search size={14} />
+                    </div>
+                    <select 
+                      className="bg-transparent border-none text-xs font-bold p-1 focus:ring-0 outline-none dark:text-white cursor-pointer hover:text-primary transition-colors"
+                      value={selectedComparisonVehicleId}
+                      onChange={(e) => setSelectedComparisonVehicleId(e.target.value)}
+                    >
+                      <option value="" disabled className="dark:bg-slate-900">Comparar com...</option>
+                      {vehicles.map(v => (
+                        <option key={v.id} value={v.id} className="dark:bg-slate-900">{v.plate} - {v.model}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
-                <div className="w-full mt-8 space-y-3">
-                  {stats.participationData.map((item) => (
-                    <div key={item.name} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></span>
-                        <span className="dark:text-slate-300">{item.name}</span>
-                      </div>
-                      <span className="font-bold dark:text-white">R$ {item.value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
+                <div className="flex-1 flex flex-col items-center justify-center relative mt-4">
+                  {loading && (
+                    <div className="absolute inset-0 z-10 bg-white/50 dark:bg-background-dark/50 backdrop-blur-[1px] flex items-center justify-center rounded-2xl">
+                      <Loader2 className="w-8 h-8 text-primary animate-spin" />
                     </div>
-                  ))}
+                  )}
+                  <div className="h-48 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={stats.comparisonData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {stats.comparisonData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-3xl font-bold dark:text-white">
+                        {stats.comparisonData[0]?.value > 0 || stats.comparisonData[1]?.value > 0 
+                          ? ((stats.comparisonData[0].value / (stats.comparisonData[0].value + stats.comparisonData[1].value)) * 100).toFixed(0) 
+                          : '0'}%
+                      </span>
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">proporção</span>
+                    </div>
+                  </div>
+                  <div className="w-full mt-8 space-y-3">
+                    {stats.comparisonData.map((item) => (
+                      <div key={item.name} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></span>
+                          <span className="dark:text-slate-300 truncate max-w-[150px]">{item.name}</span>
+                        </div>
+                        <span className="font-bold dark:text-white">R$ {item.value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

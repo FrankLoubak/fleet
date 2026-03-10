@@ -397,8 +397,8 @@ export default function Journeys() {
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
       <Sidebar />
       
-      <main className="flex-1 flex flex-col overflow-y-auto">
-        <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-10">
+      <main className="flex-1 flex flex-col overflow-auto">
+        <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-10 min-w-[1100px]">
           <h2 className="text-lg font-bold dark:text-white">Gestão de Jornadas</h2>
           <button 
             onClick={() => handleOpenModal()}
@@ -409,7 +409,7 @@ export default function Journeys() {
           </button>
         </header>
 
-        <div className="p-8 space-y-6">
+        <div className="p-8 space-y-6 min-w-[1100px]">
           <div className="flex flex-col lg:flex-row gap-4 items-end justify-between">
             <div className="flex flex-col md:flex-row gap-4 w-full lg:w-auto flex-1">
               <div className="flex flex-col gap-1.5 flex-1 md:max-w-xs">

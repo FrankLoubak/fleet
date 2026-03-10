@@ -351,8 +351,8 @@ export default function Vehicles() {
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
       <Sidebar />
       
-      <main className="flex-1 flex flex-col overflow-y-auto">
-        <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-10">
+      <main className="flex-1 flex flex-col overflow-auto">
+        <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-10 min-w-[1100px]">
           <h2 className="text-lg font-bold dark:text-white">Frota de Veículos</h2>
           <div className="flex items-center gap-4">
             <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
@@ -385,7 +385,7 @@ export default function Vehicles() {
           </div>
         </header>
 
-        <div className="p-8 space-y-6">
+        <div className="p-8 space-y-6 min-w-[1100px]">
           {/* Search and Filters */}
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="relative w-full md:max-w-md">

@@ -278,7 +278,7 @@ export default function Refueling() {
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center">
-      <div className="w-full max-w-md bg-background-light dark:bg-background-dark flex flex-col min-h-screen shadow-2xl">
+      <div className="w-full max-w-md bg-background-light dark:bg-background-dark flex flex-col min-h-screen shadow-2xl overflow-x-auto">
         <header className="flex items-center p-4 border-b border-slate-200 dark:border-slate-800">
           <button 
             onClick={() => navigate(-1)}
