@@ -48,7 +48,11 @@ export default function DailyReport() {
       if (vError) {
         console.error('Error fetching vehicles:', vError);
       } else {
-        setVehicles(vehiclesData || []);
+        const normalizedVehicles = (vehiclesData || []).map(v => ({
+          ...v,
+          lastOdometer: v.last_odometer
+        }));
+        setVehicles(normalizedVehicles);
       }
 
       // Load users/profiles
@@ -191,6 +195,14 @@ export default function DailyReport() {
 
       if (insertError) throw insertError;
 
+      // Update vehicle last_odometer if start KM is higher
+      if (vehicle && Number(startOdometer) > vehicle.lastOdometer) {
+        await supabase
+          .from('vehicles')
+          .update({ last_odometer: Number(startOdometer) })
+          .eq('id', selectedVehicle);
+      }
+
       if (newJData && newJData.length > 0) {
         const j = newJData[0];
         const newJourney: Journey = {
@@ -238,6 +250,14 @@ export default function DailyReport() {
         .eq('id', currentJourney!.id);
 
       if (error) throw error;
+
+      // Update vehicle last_odometer
+      const { error: vError } = await supabase
+        .from('vehicles')
+        .update({ last_odometer: endOdom })
+        .eq('id', currentJourney!.vehicleId);
+
+      if (vError) console.error('Error updating vehicle odometer:', vError);
 
       // Clear local state
       setCurrentJourney(null);

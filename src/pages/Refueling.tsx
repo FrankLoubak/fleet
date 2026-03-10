@@ -13,6 +13,7 @@ export default function Refueling() {
   const [fuelType, setFuelType] = useState('Gasolina');
   const [odometer, setOdometer] = useState('');
   const [quantity, setQuantity] = useState('');
+  const [totalValue, setTotalValue] = useState('');
   const [location, setLocation] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   
@@ -108,8 +109,8 @@ export default function Refueling() {
     : 0;
 
   const handleSaveClick = () => {
-    if (!odometer || !quantity) {
-      alert('Por favor, preencha o KM atual e a quantidade de litros.');
+    if (!odometer || !quantity || !totalValue) {
+      alert('Por favor, preencha o KM atual, a quantidade de litros e o valor total.');
       return;
     }
 
@@ -253,6 +254,7 @@ export default function Refueling() {
         date: date,
         odometer: Number(odometer),
         quantity: Number(quantity),
+        total_value: Number(totalValue),
         fuel_type: fuelType,
         vehicle_id: activeJourney?.vehicleId || '',
         location: location
@@ -263,6 +265,16 @@ export default function Refueling() {
         .insert([refuelingPayload]);
 
       if (error) throw error;
+
+      // Update vehicle last_odometer if this is the newest
+      const odoNum = Number(odometer);
+      if (odoNum > (vehicle?.lastOdometer || 0)) {
+        const { error: vError } = await supabase
+          .from('vehicles')
+          .update({ last_odometer: odoNum })
+          .eq('id', activeJourney?.vehicleId);
+        if (vError) console.error('Error updating vehicle odometer:', vError);
+      }
 
       alert('Abastecimento registrado com sucesso!');
       navigate(-1);
@@ -376,6 +388,21 @@ export default function Refueling() {
             </div>
           </div>
 
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Valor Total (R$)</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
+              <input
+                className="input-field pl-12"
+                placeholder="0,00"
+                step="0.01"
+                type="number"
+                value={totalValue}
+                onChange={(e) => setTotalValue(e.target.value)}
+              />
+            </div>
+          </div>
+
           <div className="flex flex-col gap-2 p-4 rounded-xl bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
             <label className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Consumo Médio</label>
             <div className="flex items-center justify-between">
@@ -450,6 +477,10 @@ export default function Refueling() {
                   <div className="flex items-center justify-between border-b border-primary/10 pb-3">
                     <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Quantidade</span>
                     <span className="text-lg font-bold text-slate-900 dark:text-white">{quantity} Litros</span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-primary/10 pb-3">
+                    <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Valor Total</span>
+                    <span className="text-lg font-bold text-slate-900 dark:text-white">R$ {Number(totalValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                   </div>
                   {location && (
                     <div className="flex items-center justify-between border-b border-primary/10 pb-3">

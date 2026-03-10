@@ -14,6 +14,7 @@ export interface RefuelingRecord {
   fuelType: 'Gasolina' | 'Álcool' | 'Diesel';
   vehicleId: string;
   location?: string;
+  totalValue?: number;
 }
 
 export type MaintenanceType = 'Mecanica' | 'Eletrica' | 'Acessórios' | 'Borracharia' | 'Ar de serviço';
@@ -26,6 +27,7 @@ export interface MaintenanceRecord {
   mileage: number;
   description: string;
   vehicleId: string;
+  totalValue?: number;
 }
 
 export interface Provider {

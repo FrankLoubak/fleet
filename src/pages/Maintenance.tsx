@@ -12,6 +12,7 @@ export default function Maintenance() {
   const [selectedProvider, setSelectedProvider] = useState('');
 
   const [mileage, setMileage] = useState('');
+  const [totalValue, setTotalValue] = useState('');
   const [description, setDescription] = useState('');
   const [activeJourney, setActiveJourney] = useState<any>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -141,8 +142,14 @@ export default function Maintenance() {
   }, [isHistoryModalOpen, activeJourney?.vehicleId, modalStartDate, modalEndDate]);
 
   const handleSave = async () => {
-    if (!selectedType || !selectedProvider || !mileage || !description) {
+    if (!selectedType || !selectedProvider || !mileage || !description || !totalValue) {
       alert('Por favor, preencha todos os campos.');
+      return;
+    }
+
+    const odoNum = Number(mileage);
+    if (odoNum <= (vehicle?.lastOdometer || 0)) {
+      alert(`O KM da manutenção (${odoNum}) deve ser maior que o último KM registrado (${vehicle?.lastOdometer || 0}).`);
       return;
     }
 
@@ -153,6 +160,7 @@ export default function Maintenance() {
         type: selectedType,
         provider: MOCK_PROVIDERS.find(p => p.id === selectedProvider)?.name || 'Desconhecido',
         mileage: Number(mileage),
+        total_value: Number(totalValue),
         description,
         vehicle_id: activeJourney?.vehicleId || ''
       };
@@ -162,6 +170,16 @@ export default function Maintenance() {
         .insert([maintenancePayload]);
 
       if (error) throw error;
+
+      // Update vehicle last_odometer if this is the newest
+      const odoNum = Number(mileage);
+      if (odoNum > (vehicle?.lastOdometer || 0)) {
+        const { error: vError } = await supabase
+          .from('vehicles')
+          .update({ last_odometer: odoNum })
+          .eq('id', activeJourney?.vehicleId);
+        if (vError) console.error('Error updating vehicle odometer:', vError);
+      }
 
       alert('Manutenção salva com sucesso!');
       navigate(-1);
@@ -268,6 +286,21 @@ export default function Maintenance() {
                   type="number"
                   value={mileage}
                   onChange={(e) => setMileage(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Valor Total (R$)</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
+                <input
+                  className="input-field pl-12"
+                  placeholder="0,00"
+                  step="0.01"
+                  type="number"
+                  value={totalValue}
+                  onChange={(e) => setTotalValue(e.target.value)}
                 />
               </div>
             </div>

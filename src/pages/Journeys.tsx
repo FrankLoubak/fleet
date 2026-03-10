@@ -50,6 +50,8 @@ export default function Journeys() {
   const [modalStartDate, setModalStartDate] = useState('');
   const [modalEndDate, setModalEndDate] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isOdometerErrorModalOpen, setIsOdometerErrorModalOpen] = useState(false);
+  const [lastOdometerValue, setLastOdometerValue] = useState(0);
 
   const exportFuelingsToCSV = () => {
     if (!selectedVehicleForDetails || vehicleFuelings.length === 0) return;
@@ -174,7 +176,12 @@ export default function Journeys() {
       }));
 
       setJourneys(normalizedJourneys);
-      setVehicles(vehiclesData || []);
+      
+      const normalizedVehicles = (vehiclesData || []).map(v => ({
+        ...v,
+        lastOdometer: v.last_odometer
+      }));
+      setVehicles(normalizedVehicles);
       
       // Normalize profiles to UserType
       const normalizedUsers = (profilesData || []).map(p => ({
@@ -227,6 +234,17 @@ export default function Journeys() {
 
   const handleSaveJourney = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Odometer validation for new journeys
+    if (!editingJourney) {
+      const vehicle = vehicles.find(v => v.id === formData.vehicleId);
+      if (vehicle && Number(formData.startOdometer) < vehicle.lastOdometer) {
+        setLastOdometerValue(vehicle.lastOdometer);
+        setIsOdometerErrorModalOpen(true);
+        return;
+      }
+    }
+
     setLoading(true);
     
     try {
@@ -259,6 +277,23 @@ export default function Journeys() {
       }
 
       setIsModalOpen(false);
+      
+      // Update vehicle last_odometer if any KM is higher than current
+      const vehicle = vehicles.find(v => v.id === formData.vehicleId);
+      if (vehicle) {
+        const maxKm = Math.max(
+          Number(formData.startOdometer) || 0,
+          formData.status === 'encerrada' ? (Number(formData.endOdometer) || 0) : 0
+        );
+        
+        if (maxKm > vehicle.lastOdometer) {
+          await supabase
+            .from('vehicles')
+            .update({ last_odometer: maxKm })
+            .eq('id', formData.vehicleId);
+        }
+      }
+
       await loadData();
     } catch (err) {
       console.error('Error saving journey:', err);
@@ -728,6 +763,51 @@ export default function Journeys() {
                   <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">Cancelar</button>
                   <button onClick={handleDeleteJourney} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-600/20">Excluir</button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Odometer Error Modal */}
+        {isOdometerErrorModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-6 space-y-6">
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="bg-amber-100 dark:bg-amber-900/30 p-4 rounded-full">
+                    <Zap className="text-amber-600 w-10 h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Erro de Quilometragem</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      O KM inicial informado é inferior ao último registro de encerramento deste veículo.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-800 text-center">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Último KM Final</p>
+                    <p className="text-lg font-bold text-slate-900 dark:text-white">{lastOdometerValue} KM</p>
+                  </div>
+                  <div className="bg-red-50 dark:bg-red-900/10 rounded-xl p-3 border border-red-100 dark:border-red-900/20 text-center">
+                    <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider">KM Digitado</p>
+                    <p className="text-lg font-bold text-red-600 dark:text-red-400">{formData.startOdometer} KM</p>
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+                  <p className="text-xs text-amber-800 dark:text-amber-400 text-center font-medium">
+                    Por favor, verifique o painel do veículo e corrija a quilometragem para prosseguir.
+                  </p>
+                </div>
+
+                <button 
+                  onClick={() => setIsOdometerErrorModalOpen(false)}
+                  className="w-full h-14 bg-primary text-white rounded-2xl font-bold uppercase tracking-wider shadow-lg shadow-primary/20 hover:bg-blue-700 transition-all"
+                >
+                  Corrigir Quilometragem
+                </button>
               </div>
             </div>
           </div>

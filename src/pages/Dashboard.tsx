@@ -63,12 +63,14 @@ export default function Dashboard() {
       const normalizedRefuelings = (allRefuelings || []).map(r => ({
         ...r,
         vehicleId: r.vehicle_id,
-        fuelType: r.fuel_type
+        fuelType: r.fuel_type,
+        totalValue: r.total_value
       }));
 
       const normalizedMaintenances = (allMaintenances || []).map(m => ({
         ...m,
-        vehicleId: m.vehicle_id
+        vehicleId: m.vehicle_id,
+        totalValue: m.total_value
       }));
 
       // Filter data by date and vehicle
@@ -134,8 +136,8 @@ export default function Dashboard() {
         
         const monthData = last12Months.find(lm => lm.monthIndex === m && lm.year === y);
         if (monthData) {
-          const price = r.fuelType === 'Diesel' ? 6.20 : 5.80;
-          monthData.fuel += r.quantity * price;
+          const value = r.totalValue || (r.quantity * (r.fuelType === 'Diesel' ? 6.20 : 5.80));
+          monthData.fuel += value;
         }
       });
 
@@ -148,16 +150,16 @@ export default function Dashboard() {
         
         const monthData = last12Months.find(lm => lm.monthIndex === monthIndex && lm.year === y);
         if (monthData) {
-          monthData.maintenance += 1200; 
+          monthData.maintenance += m.totalValue || 1200; 
         }
       });
 
       // Stats for selected period
-      const fuelTotal = filteredRefuelings.reduce((acc, r) => acc + (r.quantity * (r.fuelType === 'Diesel' ? 6.20 : 5.80)), 0);
-      const fuelPrev = prevRefuelings.reduce((acc, r) => acc + (r.quantity * (r.fuelType === 'Diesel' ? 6.20 : 5.80)), 0);
+      const fuelTotal = filteredRefuelings.reduce((acc, r) => acc + (r.totalValue || (r.quantity * (r.fuelType === 'Diesel' ? 6.20 : 5.80))), 0);
+      const fuelPrev = prevRefuelings.reduce((acc, r) => acc + (r.totalValue || (r.quantity * (r.fuelType === 'Diesel' ? 6.20 : 5.80))), 0);
       
-      const maintenanceTotal = filteredMaintenances.reduce((acc, m) => acc + 1200, 0);
-      const maintenancePrev = prevMaintenances.reduce((acc, m) => acc + 1200, 0);
+      const maintenanceTotal = filteredMaintenances.reduce((acc, m) => acc + (m.totalValue || 1200), 0);
+      const maintenancePrev = prevMaintenances.reduce((acc, m) => acc + (m.totalValue || 1200), 0);
 
       // Participation Data
       const vehicleSpending = vehicles.map((v: Vehicle) => {
@@ -165,12 +167,12 @@ export default function Dashboard() {
         let maintenance = 0;
         normalizedRefuelings.filter(r => r.vehicleId === v.id).forEach(r => {
           if (r.date >= startDate && r.date <= endDate) {
-            fuel += r.quantity * (r.fuelType === 'Diesel' ? 6.20 : 5.80);
+            fuel += r.totalValue || (r.quantity * (r.fuelType === 'Diesel' ? 6.20 : 5.80));
           }
         });
         normalizedMaintenances.filter(m => m.vehicleId === v.id).forEach(m => {
           if (m.date >= startDate && m.date <= endDate) {
-            maintenance += 1200;
+            maintenance += m.totalValue || 1200;
           }
         });
         return { id: v.id, name: v.plate, fuel, maintenance, total: fuel + maintenance };
@@ -232,7 +234,7 @@ export default function Dashboard() {
           date: new Date(r.date).toLocaleDateString('pt-BR'),
           time: '---',
           detail: `${r.quantity}L de ${r.fuelType}${r.location ? ` • ${r.location}` : ''}${avgCons > 0 ? ` • ${avgCons.toFixed(1)} km/L` : ''}`,
-          value: r.quantity * (r.fuelType === 'Diesel' ? 6.20 : 5.80),
+          value: r.totalValue || (r.quantity * (r.fuelType === 'Diesel' ? 6.20 : 5.80)),
           color: 'text-green-600',
           bg: 'bg-green-100 dark:bg-green-900/30',
           timestamp: new Date(r.date + 'T12:00:00').getTime()
@@ -247,7 +249,7 @@ export default function Dashboard() {
         date: new Date(m.date + 'T12:00:00').toLocaleDateString('pt-BR'),
         time: '---',
         detail: m.provider,
-        value: 1200,
+        value: m.totalValue || 1200,
         color: 'text-orange-600',
         bg: 'bg-orange-100 dark:bg-orange-900/30',
         timestamp: new Date(m.date + 'T12:00:00').getTime()
