@@ -312,7 +312,12 @@ export default function DailyReport() {
 
         <main className="flex-1 px-4 py-6 space-y-6 pb-24">
           <div className="mb-6 space-y-1">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Olá, {currentUser.name}</h2>
+            <div className="flex flex-col">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Olá, {currentUser?.name}</h2>
+              <span className="text-[10px] text-blue-500 font-mono select-all cursor-help" title="Seu ID de Usuário para o script SQL">
+                ID: {currentUser?.id}
+              </span>
+            </div>
             <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
               {isJourneyOpen ? 'Sua jornada está em andamento' : 'Bem-vindo à sua jornada de hoje'}
             </p>

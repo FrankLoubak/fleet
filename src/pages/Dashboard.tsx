@@ -301,7 +301,12 @@ export default function Dashboard() {
       
       <main className="flex-1 flex flex-col overflow-y-auto">
         <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-10">
-          <h2 className="text-lg font-bold dark:text-white">Dashboard de Frota</h2>
+          <div className="flex flex-col">
+            <h2 className="text-lg font-bold dark:text-white">Dashboard de Frota</h2>
+            <span className="text-[10px] text-blue-500 font-mono select-all cursor-help" title="Seu ID de Usuário para o script SQL">
+              ID: {currentUser?.id}
+            </span>
+          </div>
           <div className="flex items-center gap-6">
             <div className="relative max-w-xs hidden md:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />

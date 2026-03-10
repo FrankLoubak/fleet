@@ -1,0 +1,6 @@
+id,name,email,role,avatar,phone
+00000000-0000-0000-0000-000000000001,Ricardo Silva,ricardo@fleet.com,Admin,https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop,(11) 98765-4321
+00000000-0000-0000-0000-000000000002,Carlos Oliveira,carlos@fleet.com,Motorista,https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop,(11) 91234-5678
+00000000-0000-0000-0000-000000000003,Ana Santos,ana@fleet.com,Admin,https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop,(11) 97777-8888
+00000000-0000-0000-0000-000000000004,João Pereira,joao@fleet.com,Motorista,https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop,(11) 96666-5555
+00000000-0000-0000-0000-000000000005,Maria Souza,maria@fleet.com,Motorista,https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop,(11) 95555-4444
