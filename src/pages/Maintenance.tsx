@@ -21,6 +21,9 @@ export default function Maintenance() {
   const [modalStartDate, setModalStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]);
   const [modalEndDate, setModalEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+  const [errorMessages, setErrorMessages] = useState<string[]>([]);
 
   useEffect(() => {
     const initPage = async () => {
@@ -142,14 +145,19 @@ export default function Maintenance() {
   }, [isHistoryModalOpen, activeJourney?.vehicleId, modalStartDate, modalEndDate]);
 
   const handleSave = async () => {
+    const errors: string[] = [];
     if (!selectedType || !selectedProvider || !mileage || !description || !totalValue) {
-      alert('Por favor, preencha todos os campos.');
-      return;
+      errors.push('Por favor, preencha todos os campos obrigatórios.');
     }
 
     const odoNum = Number(mileage);
-    if (odoNum <= (vehicle?.lastOdometer || 0)) {
-      alert(`O KM da manutenção (${odoNum}) deve ser maior que o último KM registrado (${vehicle?.lastOdometer || 0}).`);
+    if (mileage && odoNum <= (vehicle?.lastOdometer || 0)) {
+      errors.push(`O KM da manutenção (${odoNum}) deve ser maior que o último KM registrado (${vehicle?.lastOdometer || 0}).`);
+    }
+
+    if (errors.length > 0) {
+      setErrorMessages(errors);
+      setIsErrorModalOpen(true);
       return;
     }
 
@@ -162,7 +170,8 @@ export default function Maintenance() {
         mileage: Number(mileage),
         total_value: Number(totalValue),
         description,
-        vehicle_id: activeJourney?.vehicleId || ''
+        vehicle_id: activeJourney?.vehicleId || '',
+        user_id: currentUser?.id || ''
       };
 
       const { error } = await supabase
@@ -172,7 +181,6 @@ export default function Maintenance() {
       if (error) throw error;
 
       // Update vehicle last_odometer if this is the newest
-      const odoNum = Number(mileage);
       if (odoNum > (vehicle?.lastOdometer || 0)) {
         const { error: vError } = await supabase
           .from('vehicles')
@@ -181,11 +189,11 @@ export default function Maintenance() {
         if (vError) console.error('Error updating vehicle odometer:', vError);
       }
 
-      alert('Manutenção salva com sucesso!');
-      navigate(-1);
-    } catch (err) {
+      setIsSuccessModalOpen(true);
+    } catch (err: any) {
       console.error('Error saving maintenance:', err);
-      alert('Erro ao salvar manutenção.');
+      setErrorMessages([err.message || 'Erro ao salvar manutenção. Verifique sua conexão.']);
+      setIsErrorModalOpen(true);
     } finally {
       setLoading(false);
     }
@@ -437,6 +445,72 @@ export default function Maintenance() {
                   <Download size={18} />
                   Exportar CSV
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success Modal */}
+        {isSuccessModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-8 space-y-6 flex flex-col items-center text-center">
+                <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-full animate-bounce">
+                  <Save className="text-green-600 w-12 h-12" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Sucesso!</h3>
+                  <p className="text-slate-500 dark:text-slate-400">
+                    A manutenção foi registrada corretamente no sistema.
+                  </p>
+                </div>
+                
+                <button 
+                  onClick={() => navigate(-1)}
+                  className="w-full h-14 bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-600/20 hover:bg-green-700 transition-all"
+                >
+                  Voltar para Frota
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Modal */}
+        {isErrorModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-6 space-y-6">
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-full">
+                    <X className="text-red-600 w-10 h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Erro no Registro</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Ocorreu um problema ao tentar processar sua solicitação.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  {errorMessages.map((msg, i) => (
+                    <div key={i} className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-xl">
+                      <p className="text-sm font-medium text-red-700 dark:text-red-400 leading-relaxed">
+                        {msg}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-2">
+                  <button 
+                    onClick={() => setIsErrorModalOpen(false)}
+                    className="w-full h-14 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold shadow-lg hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                  >
+                    Entendido
+                  </button>
+                </div>
               </div>
             </div>
           </div>

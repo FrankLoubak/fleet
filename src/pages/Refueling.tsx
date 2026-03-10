@@ -13,7 +13,6 @@ export default function Refueling() {
   const [fuelType, setFuelType] = useState('Gasolina');
   const [odometer, setOdometer] = useState('');
   const [quantity, setQuantity] = useState('');
-  const [totalValue, setTotalValue] = useState('');
   const [location, setLocation] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   
@@ -25,6 +24,7 @@ export default function Refueling() {
   const [modalEndDate, setModalEndDate] = useState(new Date().toISOString().split('T')[0]);
   
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [errorMessages, setErrorMessages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const odometerInputRef = useRef<HTMLInputElement>(null);
@@ -67,6 +67,11 @@ export default function Refueling() {
           observations: j.observations
         };
         setActiveJourney(journey);
+        
+        // Set default date to journey start date
+        if (journey.startTime) {
+          setDate(journey.startTime.split('T')[0]);
+        }
 
         // Load vehicles
         const { data: vehiclesData, error: vError } = await supabase
@@ -109,34 +114,42 @@ export default function Refueling() {
     : 0;
 
   const handleSaveClick = () => {
-    if (!odometer || !quantity || !totalValue) {
-      alert('Por favor, preencha o KM atual, a quantidade de litros e o valor total.');
-      return;
-    }
-
+    const errors: string[] = [];
     const kmValue = Number(odometer);
     const qtyValue = Number(quantity);
-    const errors: string[] = [];
 
-    // Validation: KM must be greater than start of journey
-    if (activeJourney && kmValue <= activeJourney.startOdometer) {
-      errors.push(`O KM digitado (${kmValue}) deve ser maior que o KM de início da jornada (${activeJourney.startOdometer}).`);
+    if (!odometer || !quantity) {
+      errors.push('Por favor, preencha o KM atual e a quantidade de litros.');
     }
 
-    // Validation: KM must be greater than last refueling
-    if (kmValue <= previousKM) {
-      errors.push(`O KM digitado (${kmValue}) deve ser maior que o KM do último abastecimento (${previousKM}).`);
+    // Validation: Date must not be before journey start date
+    if (activeJourney && date) {
+      const journeyStartDate = activeJourney.startTime.split('T')[0];
+      if (date < journeyStartDate) {
+        const formattedDate = date.split('-').reverse().join('/');
+        const formattedStartDate = journeyStartDate.split('-').reverse().join('/');
+        errors.push(`A data do abastecimento (${formattedDate}) não pode ser anterior à data de início da jornada (${formattedStartDate}).`);
+      }
+    }
+
+    // Validation: KM must be greater than or equal to start of journey
+    if (activeJourney && odometer && kmValue < activeJourney.startOdometer) {
+      errors.push(`O KM digitado (${kmValue}) deve ser maior ou igual ao KM de início da jornada (${activeJourney.startOdometer}).`);
+    }
+
+    // Validation: KM must be greater than or equal to last refueling
+    if (odometer && kmValue < previousKM) {
+      errors.push(`O KM digitado (${kmValue}) deve ser maior ou igual ao KM do último registro (${previousKM}).`);
+    }
+
+    // Validation: Quantity must be greater than 1
+    if (quantity && qtyValue <= 1) {
+      errors.push('A quantidade de litros deve ser maior que 1.');
     }
 
     if (errors.length > 0) {
       setErrorMessages(errors);
       setIsErrorModalOpen(true);
-      return;
-    }
-
-    // Validation: Quantity must be greater than 1
-    if (qtyValue <= 1) {
-      alert('A quantidade de litros deve ser maior que 1.');
       return;
     }
 
@@ -254,9 +267,9 @@ export default function Refueling() {
         date: date,
         odometer: Number(odometer),
         quantity: Number(quantity),
-        total_value: Number(totalValue),
         fuel_type: fuelType,
         vehicle_id: activeJourney?.vehicleId || '',
+        user_id: currentUser?.id || '',
         location: location
       };
 
@@ -276,11 +289,12 @@ export default function Refueling() {
         if (vError) console.error('Error updating vehicle odometer:', vError);
       }
 
-      alert('Abastecimento registrado com sucesso!');
-      navigate(-1);
-    } catch (err) {
+      setIsConfirmModalOpen(false);
+      setIsSuccessModalOpen(true);
+    } catch (err: any) {
       console.error('Error saving refueling:', err);
-      alert('Erro ao registrar abastecimento.');
+      setErrorMessages([err.message || 'Não foi possível salvar o registro de abastecimento. Verifique sua conexão e tente novamente.']);
+      setIsErrorModalOpen(true);
     } finally {
       setLoading(false);
     }
@@ -388,21 +402,6 @@ export default function Refueling() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Valor Total (R$)</label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
-              <input
-                className="input-field pl-12"
-                placeholder="0,00"
-                step="0.01"
-                type="number"
-                value={totalValue}
-                onChange={(e) => setTotalValue(e.target.value)}
-              />
-            </div>
-          </div>
-
           <div className="flex flex-col gap-2 p-4 rounded-xl bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
             <label className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Consumo Médio</label>
             <div className="flex items-center justify-between">
@@ -477,10 +476,6 @@ export default function Refueling() {
                   <div className="flex items-center justify-between border-b border-primary/10 pb-3">
                     <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Quantidade</span>
                     <span className="text-lg font-bold text-slate-900 dark:text-white">{quantity} Litros</span>
-                  </div>
-                  <div className="flex items-center justify-between border-b border-primary/10 pb-3">
-                    <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Valor Total</span>
-                    <span className="text-lg font-bold text-slate-900 dark:text-white">R$ {Number(totalValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                   </div>
                   {location && (
                     <div className="flex items-center justify-between border-b border-primary/10 pb-3">
@@ -633,17 +628,22 @@ export default function Refueling() {
         {isErrorModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 space-y-4">
-                <div className="flex items-center gap-3 text-red-500">
-                  <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
-                    <AlertTriangle size={24} />
+              <div className="p-6 space-y-6">
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-full">
+                    <AlertTriangle className="text-red-600 w-10 h-10" />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">Erro de Validação</h3>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Erro no Registro</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Ocorreu um problema ao tentar processar sua solicitação.
+                    </p>
+                  </div>
                 </div>
                 
                 <div className="space-y-3">
                   {errorMessages.map((msg, i) => (
-                    <div key={i} className="p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-xl">
+                    <div key={i} className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-xl">
                       <p className="text-sm font-medium text-red-700 dark:text-red-400 leading-relaxed">
                         {msg}
                       </p>
@@ -651,14 +651,56 @@ export default function Refueling() {
                   ))}
                 </div>
 
+                {/* Detailed KM comparison if it's a KM error and not a generic save error */}
+                {odometer && errorMessages.some(m => m.includes('KM')) && (Number(odometer) < previousKM || (activeJourney && Number(odometer) < activeJourney.startOdometer)) && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-800 text-center">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">KM Mínimo</p>
+                      <p className="text-lg font-bold text-slate-900 dark:text-white">
+                        {Math.max(previousKM, activeJourney?.startOdometer || 0)} KM
+                      </p>
+                    </div>
+                    <div className="bg-red-50 dark:bg-red-900/10 rounded-xl p-3 border border-red-100 dark:border-red-900/20 text-center">
+                      <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider">KM Digitado</p>
+                      <p className="text-lg font-bold text-red-600 dark:text-red-400">{odometer} KM</p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="pt-2">
                   <button 
                     onClick={handleErrorClose}
                     className="w-full h-14 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold shadow-lg hover:opacity-90 transition-all flex items-center justify-center gap-2"
                   >
-                    Corrigir
+                    Entendido
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success Modal */}
+        {isSuccessModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-8 space-y-6 flex flex-col items-center text-center">
+                <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-full animate-bounce">
+                  <CheckCircle2 className="text-green-600 w-12 h-12" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Sucesso!</h3>
+                  <p className="text-slate-500 dark:text-slate-400">
+                    O abastecimento foi registrado corretamente no sistema.
+                  </p>
+                </div>
+                
+                <button 
+                  onClick={() => navigate(-1)}
+                  className="w-full h-14 bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-600/20 hover:bg-green-700 transition-all"
+                >
+                  Voltar para Parte Diária
+                </button>
               </div>
             </div>
           </div>

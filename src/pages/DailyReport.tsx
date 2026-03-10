@@ -24,6 +24,9 @@ export default function DailyReport() {
   const [isPreviousJourneyModalOpen, setIsPreviousJourneyModalOpen] = useState(false);
   const [isVehicleOccupiedModalOpen, setIsVehicleOccupiedModalOpen] = useState(false);
   const [isOdometerErrorModalOpen, setIsOdometerErrorModalOpen] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [isGeneralErrorModalOpen, setIsGeneralErrorModalOpen] = useState(false);
+  const [errorMessages, setErrorMessages] = useState<string[]>([]);
   const [lastOdometerValue, setLastOdometerValue] = useState(0);
   const [occupyingUser, setOccupyingUser] = useState<UserType | null>(null);
   const [endOdometer, setEndOdometer] = useState('');
@@ -172,11 +175,31 @@ export default function DailyReport() {
         return;
       }
 
-      // 02 - Check if start KM is greater than last closing KM
-      const vehicle = vehicles.find(v => v.id === selectedVehicle);
-      if (vehicle && Number(startOdometer) < vehicle.lastOdometer) {
-        setLastOdometerValue(vehicle.lastOdometer);
+      // 02 - Check if start KM is greater than or equal to the last recorded KM (Last Journey, Refueling or Maintenance)
+      const { data: lastJ, error: ljErr } = await supabase
+        .from('journeys')
+        .select('end_odometer')
+        .eq('vehicle_id', selectedVehicle)
+        .eq('status', 'encerrada')
+        .order('end_time', { ascending: false })
+        .limit(1);
+      
+      const { data: vRecord, error: vrErr } = await supabase
+        .from('vehicles')
+        .select('last_odometer')
+        .eq('id', selectedVehicle)
+        .single();
+
+      if (ljErr || vrErr) throw (ljErr || vrErr);
+
+      const lastJourneyOdo = lastJ?.[0]?.end_odometer || 0;
+      const vehicleOdo = vRecord?.last_odometer || 0;
+      const minRequiredOdo = Math.max(lastJourneyOdo, vehicleOdo);
+
+      if (Number(startOdometer) < minRequiredOdo) {
+        setLastOdometerValue(minRequiredOdo);
         setIsOdometerErrorModalOpen(true);
+        setLoading(false);
         return;
       }
 
@@ -228,16 +251,61 @@ export default function DailyReport() {
   };
 
   const handleEndJourney = async () => {
-    if (!endOdometer || Number(endOdometer) <= (currentJourney?.startOdometer || 0)) {
-      alert('O KM final deve ser maior que o KM inicial.');
+    const endOdom = Number(endOdometer);
+    const startOdom = currentJourney?.startOdometer || 0;
+
+    if (!endOdometer || endOdom <= startOdom) {
+      setErrorMessages(['O KM final deve ser maior que o KM inicial.']);
+      setIsGeneralErrorModalOpen(true);
       return;
     }
 
     setLoading(true);
     try {
+      // 02 - Check for refuelings during this journey
+      const { data: journeyRefuelings, error: refError } = await supabase
+        .from('refuelings')
+        .select('odometer')
+        .eq('vehicle_id', currentJourney?.vehicleId)
+        .gte('created_at', currentJourney?.startTime)
+        .order('odometer', { ascending: false })
+        .limit(1);
+
+      if (refError) console.error('Error checking refuelings:', refError);
+      
+      if (journeyRefuelings && journeyRefuelings.length > 0) {
+        const maxRefOdo = journeyRefuelings[0].odometer;
+        if (endOdom < maxRefOdo) {
+          setErrorMessages([`O KM final (${endOdom}) não pode ser menor que o KM do último abastecimento realizado nesta jornada (${maxRefOdo}).`]);
+          setIsGeneralErrorModalOpen(true);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 03 - Check for maintenances during this journey
+      const { data: journeyMaintenances, error: maintError } = await supabase
+        .from('maintenances')
+        .select('mileage')
+        .eq('vehicle_id', currentJourney?.vehicleId)
+        .gte('created_at', currentJourney?.startTime)
+        .order('mileage', { ascending: false })
+        .limit(1);
+
+      if (maintError) console.error('Error checking maintenances:', maintError);
+
+      if (journeyMaintenances && journeyMaintenances.length > 0) {
+        const maxMaintOdo = journeyMaintenances[0].mileage;
+        if (endOdom < maxMaintOdo) {
+          setErrorMessages([`O KM final (${endOdom}) não pode ser menor que o KM da última manutenção realizada nesta jornada (${maxMaintOdo}).`]);
+          setIsGeneralErrorModalOpen(true);
+          setLoading(false);
+          return;
+        }
+      }
+
       const endTime = new Date().toISOString();
-      const endOdom = Number(endOdometer);
-      const dist = endOdom - currentJourney!.startOdometer;
+      const dist = endOdom - startOdom;
 
       const { error } = await supabase
         .from('journeys')
@@ -266,10 +334,11 @@ export default function DailyReport() {
       setSelectedVehicle('');
       setStartOdometer('');
       
-      alert('Jornada encerrada com sucesso!');
-    } catch (err) {
+      setIsSuccessModalOpen(true);
+    } catch (err: any) {
       console.error('Error ending journey:', err);
-      alert('Erro ao encerrar jornada.');
+      setErrorMessages([err.message || 'Erro ao encerrar jornada. Verifique sua conexão.']);
+      setIsGeneralErrorModalOpen(true);
     } finally {
       setLoading(false);
     }
@@ -277,7 +346,8 @@ export default function DailyReport() {
 
   const handleEndPreviousJourney = async () => {
     if (!endOdometer || Number(endOdometer) <= (previousJourney?.startOdometer || 0)) {
-      alert('O KM final deve ser maior que o KM inicial.');
+      setErrorMessages(['O KM final deve ser maior que o KM inicial.']);
+      setIsGeneralErrorModalOpen(true);
       return;
     }
 
@@ -303,10 +373,11 @@ export default function DailyReport() {
       setIsPreviousJourneyModalOpen(false);
       setEndOdometer('');
       
-      alert('Jornada anterior encerrada com sucesso! Agora você pode iniciar uma nova.');
-    } catch (err) {
+      setIsSuccessModalOpen(true);
+    } catch (err: any) {
       console.error('Error ending previous journey:', err);
-      alert('Erro ao encerrar jornada anterior.');
+      setErrorMessages([err.message || 'Erro ao encerrar jornada anterior. Verifique sua conexão.']);
+      setIsGeneralErrorModalOpen(true);
     } finally {
       setLoading(false);
     }
@@ -785,6 +856,72 @@ export default function DailyReport() {
                 >
                   Corrigir Quilometragem
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success Modal */}
+        {isSuccessModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-8 space-y-6 flex flex-col items-center text-center">
+                <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-full animate-bounce">
+                  <CheckCircle2 className="text-green-600 w-12 h-12" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Sucesso!</h3>
+                  <p className="text-slate-500 dark:text-slate-400">
+                    A jornada foi encerrada corretamente no sistema.
+                  </p>
+                </div>
+                
+                <button 
+                  onClick={() => setIsSuccessModalOpen(false)}
+                  className="w-full h-14 bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-600/20 hover:bg-green-700 transition-all"
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* General Error Modal */}
+        {isGeneralErrorModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-6 space-y-6">
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-full">
+                    <X className="text-red-600 w-10 h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Atenção</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Não foi possível processar o encerramento da jornada.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  {errorMessages.map((msg, i) => (
+                    <div key={i} className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-xl">
+                      <p className="text-sm font-medium text-red-700 dark:text-red-400 leading-relaxed text-center">
+                        {msg}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-2">
+                  <button 
+                    onClick={() => setIsGeneralErrorModalOpen(false)}
+                    className="w-full h-14 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold shadow-lg hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                  >
+                    Entendido
+                  </button>
+                </div>
               </div>
             </div>
           </div>
