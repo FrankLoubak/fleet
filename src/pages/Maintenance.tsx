@@ -14,6 +14,7 @@ export default function Maintenance() {
   const [mileage, setMileage] = useState('');
   const [totalValue, setTotalValue] = useState('');
   const [description, setDescription] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [activeJourney, setActiveJourney] = useState<any>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -63,17 +64,22 @@ export default function Maintenance() {
           observations: j.observations
         };
         setActiveJourney(journey);
-
-        // Load vehicles
-        const { data: vehiclesData, error: vError } = await supabase
-          .from('vehicles')
-          .select('*');
         
-        if (vError) {
-          console.error('Error fetching vehicles:', vError);
-        } else {
-          setVehicles(vehiclesData || []);
+        // Set default date to journey start date
+        if (journey.startTime) {
+          setDate(journey.startTime.split('T')[0]);
         }
+      }
+
+      // Load vehicles (moved outside to ensure they load even if journey fetch is slow)
+      const { data: vehiclesData, error: vError } = await supabase
+        .from('vehicles')
+        .select('*');
+      
+      if (vError) {
+        console.error('Error fetching vehicles:', vError);
+      } else {
+        setVehicles(vehiclesData || []);
       }
     };
     initPage();
@@ -87,31 +93,56 @@ export default function Maintenance() {
   };
 
   const exportMaintenancesToCSV = () => {
-    if (!vehicle || vehicleHistory.length === 0) return;
+    if (vehicleHistory.length === 0) {
+      alert('Não há dados para exportar no período selecionado.');
+      return;
+    }
     
-    const headers = ['Data', 'Tipo', 'Prestador', 'KM', 'Descrição'];
-    const rows = vehicleHistory.map(m => [
-      new Date(m.date).toLocaleDateString('pt-BR'),
-      m.type,
-      m.provider,
-      m.mileage,
-      m.description.replace(/\n/g, ' ')
-    ]);
+    try {
+      const plate = vehicle?.plate || 'veiculo';
+      const headers = ['Data', 'Tipo', 'Prestador', 'KM', 'Valor Total', 'Descrição'];
+      
+      const rows = vehicleHistory.map(m => {
+        const dateParts = (m.date || '').split('-');
+        const formattedDate = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : m.date;
+        
+        return [
+          formattedDate,
+          m.type || '',
+          m.provider || '',
+          m.mileage || 0,
+          m.total_value || 0,
+          `"${(m.description || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`
+        ];
+      });
 
-    const csvContent = [
-      headers.join(';'),
-      ...rows.map(row => row.join(';'))
-    ].join('\n');
+      const csvContent = [
+        headers.join(';'),
+        ...rows.map(row => row.join(';'))
+      ].join('\n');
 
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `manutencoes_${vehicle.plate}_${modalStartDate}_${modalEndDate}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      
+      link.href = url;
+      link.download = `manutencoes_${plate}.csv`;
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        window.URL.revokeObjectURL(url);
+      }, 500);
+
+      alert('Relatório gerado com sucesso! O download deve iniciar automaticamente.');
+    } catch (err: any) {
+      console.error('Erro ao exportar CSV:', err);
+      alert('Erro ao gerar o arquivo: ' + (err.message || 'Erro desconhecido'));
+    }
   };
 
   useEffect(() => {
@@ -164,7 +195,7 @@ export default function Maintenance() {
     setLoading(true);
     try {
       const maintenancePayload = {
-        date: new Date().toISOString().split('T')[0],
+        date: date,
         type: selectedType,
         provider: MOCK_PROVIDERS.find(p => p.id === selectedProvider)?.name || 'Desconhecido',
         mileage: Number(mileage),
@@ -234,10 +265,10 @@ export default function Maintenance() {
               <div className="relative flex items-center">
                 <Calendar className="absolute left-4 text-slate-400 w-5 h-5" />
                 <input
-                  className="input-field pl-12 bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 cursor-not-allowed"
-                  readOnly
-                  type="text"
-                  value={new Date().toLocaleDateString('pt-BR')}
+                  className="input-field pl-12"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
                 />
               </div>
             </div>
@@ -405,8 +436,20 @@ export default function Maintenance() {
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3">
                           <div className="text-center min-w-[50px]">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">{new Date(m.date).toLocaleDateString('pt-BR', { month: 'short' })}</p>
-                            <p className="text-lg font-black text-slate-900 dark:text-white">{new Date(m.date).getDate()}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">
+                              {m.date.split('-')[1] === '01' ? 'Jan' : 
+                               m.date.split('-')[1] === '02' ? 'Fev' :
+                               m.date.split('-')[1] === '03' ? 'Mar' :
+                               m.date.split('-')[1] === '04' ? 'Abr' :
+                               m.date.split('-')[1] === '05' ? 'Mai' :
+                               m.date.split('-')[1] === '06' ? 'Jun' :
+                               m.date.split('-')[1] === '07' ? 'Jul' :
+                               m.date.split('-')[1] === '08' ? 'Ago' :
+                               m.date.split('-')[1] === '09' ? 'Set' :
+                               m.date.split('-')[1] === '10' ? 'Out' :
+                               m.date.split('-')[1] === '11' ? 'Nov' : 'Dez'}
+                            </p>
+                            <p className="text-lg font-black text-slate-900 dark:text-white">{m.date.split('-')[2]}</p>
                           </div>
                           <div className="h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
                           <div>
