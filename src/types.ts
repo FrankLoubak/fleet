@@ -28,6 +28,23 @@ export interface MaintenanceRecord {
   description: string;
   vehicleId: string;
   totalValue?: number;
+  requestId?: string;
+  status: 'pendente' | 'executada';
+}
+
+export interface MaintenanceRequest {
+  id: string;
+  userId: string;
+  vehicleId: string;
+  date: string;
+  odometer: number;
+  type: MaintenanceType;
+  description: string;
+  status: 'pendente' | 'aprovada' | 'rejeitada' | 'concluida';
+  budgetValue?: number;
+  documentUrl?: string;
+  serviceRequestNumber?: string;
+  materialRequestNumber?: string;
 }
 
 export interface Provider {
@@ -52,6 +69,8 @@ export interface Journey {
   vehicleId: string;
   startTime: string;
   endTime?: string;
+  endDate?: string;
+  endTimeManual?: string;
   startOdometer: number;
   endOdometer?: number;
   distanceTraveled?: number;

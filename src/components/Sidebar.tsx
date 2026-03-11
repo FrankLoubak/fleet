@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Truck, Car, BarChart3, User, LogOut, Mail, Phone, Shield, ChevronDown, Play, Clock } from 'lucide-react';
+import { Truck, Car, BarChart3, User, LogOut, Mail, Phone, Shield, ChevronDown, Play, Clock, Wrench } from 'lucide-react';
 import { cn } from '../utils';
 import { User as UserType } from '../types';
 
 const navItems = [
   { icon: Play, label: 'Início', path: '/daily-report' },
   { icon: Car, label: 'Veículos', path: '/vehicles' },
+  { icon: Wrench, label: 'Manutenções', path: '/maintenance-list', adminOnly: true },
   { icon: Clock, label: 'Jornadas', path: '/journeys', adminOnly: true },
   { icon: BarChart3, label: 'Relatórios', path: '/dashboard', adminOnly: true },
   { icon: User, label: 'Perfil', path: '/profile' },

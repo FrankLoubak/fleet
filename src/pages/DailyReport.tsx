@@ -30,6 +30,8 @@ export default function DailyReport() {
   const [lastOdometerValue, setLastOdometerValue] = useState(0);
   const [occupyingUser, setOccupyingUser] = useState<UserType | null>(null);
   const [endOdometer, setEndOdometer] = useState('');
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [endTime, setEndTime] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -304,13 +306,15 @@ export default function DailyReport() {
         }
       }
 
-      const endTime = new Date().toISOString();
+      const endTimeStr = `${endDate}T${endTime}`;
       const dist = endOdom - startOdom;
 
       const { error } = await supabase
         .from('journeys')
         .update({
-          end_time: endTime,
+          end_time: endTimeStr,
+          end_date: endDate,
+          end_time_manual: endTime,
           end_odometer: endOdom,
           distance_traveled: dist,
           status: 'encerrada'
@@ -353,14 +357,16 @@ export default function DailyReport() {
 
     setLoading(true);
     try {
-      const endTime = new Date().toISOString();
+      const endTimeStr = `${endDate}T${endTime}`;
       const endOdom = Number(endOdometer);
       const dist = endOdom - previousJourney!.startOdometer;
 
       const { error } = await supabase
         .from('journeys')
         .update({
-          end_time: endTime,
+          end_time: endTimeStr,
+          end_date: endDate,
+          end_time_manual: endTime,
           end_odometer: endOdom,
           distance_traveled: dist,
           status: 'encerrada'
@@ -616,6 +622,13 @@ export default function DailyReport() {
                 <History size={24} />
                 <p className="text-[9px] font-bold uppercase tracking-tight text-center">Jornadas</p>
               </button>
+              <button 
+                onClick={() => navigate('/maintenance-list')}
+                className="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400 hover:text-primary transition-colors"
+              >
+                <Wrench size={24} />
+                <p className="text-[9px] font-bold uppercase tracking-tight text-center">Manutenções</p>
+              </button>
             </>
           )}
           <button 
@@ -660,8 +673,35 @@ export default function DailyReport() {
                 </div>
                 
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Para finalizar sua jornada com o veículo <span className="font-bold text-slate-700 dark:text-slate-200">{vehicle?.model}</span>, informe a quilometragem final.
+                  Para finalizar sua jornada com o veículo <span className="font-bold text-slate-700 dark:text-slate-200">{vehicle?.model}</span>, informe os dados de encerramento.
                 </p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Data Fim</label>
+                    <div className="relative flex items-center">
+                      <Calendar className="absolute left-4 text-slate-400 w-5 h-5" />
+                      <input
+                        className="input-field pl-12"
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Hora Fim</label>
+                    <div className="relative flex items-center">
+                      <Clock className="absolute left-4 text-slate-400 w-5 h-5" />
+                      <input
+                        className="input-field pl-12"
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">KM Final</label>
@@ -733,8 +773,35 @@ export default function DailyReport() {
                 </div>
 
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Por favor, informe o KM final para encerrar a jornada anterior antes de iniciar uma nova.
+                  Por favor, informe os dados de encerramento para finalizar a jornada anterior antes de iniciar uma nova.
                 </p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Data Fim</label>
+                    <div className="relative flex items-center">
+                      <Calendar className="absolute left-4 text-slate-400 w-5 h-5" />
+                      <input
+                        className="input-field pl-12"
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Hora Fim</label>
+                    <div className="relative flex items-center">
+                      <Clock className="absolute left-4 text-slate-400 w-5 h-5" />
+                      <input
+                        className="input-field pl-12"
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">KM Final</label>

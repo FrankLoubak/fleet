@@ -10,7 +10,7 @@ export default function Refueling() {
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [activeJourney, setActiveJourney] = useState<Journey | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [fuelType, setFuelType] = useState('Gasolina');
+  const [fuelType, setFuelType] = useState('Diesel');
   const [odometer, setOdometer] = useState('');
   const [quantity, setQuantity] = useState('');
   const [location, setLocation] = useState('');

@@ -202,7 +202,8 @@ export default function Maintenance() {
         total_value: Number(totalValue),
         description,
         vehicle_id: activeJourney?.vehicleId || '',
-        user_id: currentUser?.id || ''
+        user_id: currentUser?.id || '',
+        status: 'executada'
       };
 
       const { error } = await supabase

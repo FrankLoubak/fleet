@@ -8,6 +8,7 @@ import DailyReport from './pages/DailyReport';
 import RequestMaintenance from './pages/RequestMaintenance';
 import Vehicles from './pages/Vehicles';
 import Journeys from './pages/Journeys';
+import MaintenanceList from './pages/MaintenanceList';
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/vehicles" element={<Vehicles />} />
         <Route path="/journeys" element={<Journeys />} />
+        <Route path="/maintenance-list" element={<MaintenanceList />} />
         <Route path="/daily-report" element={<DailyReport />} />
         <Route path="/request-maintenance" element={<RequestMaintenance />} />
         <Route path="/" element={<Navigate to="/login" replace />} />

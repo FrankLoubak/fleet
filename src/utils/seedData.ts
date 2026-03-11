@@ -107,7 +107,8 @@ export function generateSeedData() {
       provider: providers[0].name,
       mileage: vehicleOdometers[vehicle.id] - Math.floor(Math.random() * 500),
       description: `Manutenção preventiva de ${selectedType.toLowerCase()}.`,
-      vehicleId: vehicle.id
+      vehicleId: vehicle.id,
+      status: 'executada'
     });
   }
 

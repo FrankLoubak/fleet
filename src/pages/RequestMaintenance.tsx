@@ -13,8 +13,23 @@ export default function RequestMaintenance() {
   const [selectedType, setSelectedType] = useState<MaintenanceType | ''>('');
   const [odometer, setOdometer] = useState('');
   const [description, setDescription] = useState('');
+  const [budgetValue, setBudgetValue] = useState('');
+  const [serviceRequestNumber, setServiceRequestNumber] = useState('');
+  const [materialRequestNumber, setMaterialRequestNumber] = useState('');
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.type !== 'application/pdf') {
+        alert('Por favor, selecione apenas arquivos PDF.');
+        return;
+      }
+      setDocumentFile(file);
+    }
+  };
 
   useEffect(() => {
     const initPage = async () => {
@@ -65,6 +80,25 @@ export default function RequestMaintenance() {
 
     setLoading(true);
     try {
+      let documentUrl = '';
+      if (documentFile) {
+        const fileExt = documentFile.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${currentUser?.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('maintenance_documents')
+          .upload(filePath, documentFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('maintenance_documents')
+          .getPublicUrl(filePath);
+        
+        documentUrl = publicUrl;
+      }
+
       const requestPayload = {
         user_id: currentUser?.id || '',
         vehicle_id: selectedVehicle,
@@ -72,6 +106,10 @@ export default function RequestMaintenance() {
         odometer: Number(odometer),
         type: selectedType,
         description,
+        budget_value: budgetValue ? Number(budgetValue) : null,
+        service_request_number: serviceRequestNumber,
+        material_request_number: materialRequestNumber,
+        document_url: documentUrl,
         status: 'pendente'
       };
 
@@ -219,6 +257,53 @@ export default function RequestMaintenance() {
           {/* Maintenance Description */}
           <section className="flex flex-col gap-4">
             <h3 className="text-primary text-sm font-bold uppercase tracking-wider">Detalhes da Manutenção</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <label className="flex flex-col">
+                <p className="text-slate-700 dark:text-slate-300 text-sm font-medium pb-1.5">Valor do Orçamento (R$)</p>
+                <input 
+                  className="input-field" 
+                  placeholder="0,00" 
+                  type="number" 
+                  step="0.01"
+                  value={budgetValue}
+                  onChange={(e) => setBudgetValue(e.target.value)}
+                />
+              </label>
+              <label className="flex flex-col">
+                <p className="text-slate-700 dark:text-slate-300 text-sm font-medium pb-1.5">Documento (PDF)</p>
+                <input 
+                  className="input-field text-xs pt-3" 
+                  type="file" 
+                  accept="application/pdf"
+                  onChange={handleFileChange}
+                />
+              </label>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <label className="flex flex-col">
+                <p className="text-slate-700 dark:text-slate-300 text-sm font-medium pb-1.5">Nº Req. Serviços</p>
+                <input 
+                  className="input-field" 
+                  placeholder="Ex: RS-123" 
+                  type="text" 
+                  value={serviceRequestNumber}
+                  onChange={(e) => setServiceRequestNumber(e.target.value)}
+                />
+              </label>
+              <label className="flex flex-col">
+                <p className="text-slate-700 dark:text-slate-300 text-sm font-medium pb-1.5">Nº Req. Materiais</p>
+                <input 
+                  className="input-field" 
+                  placeholder="Ex: RM-456" 
+                  type="text" 
+                  value={materialRequestNumber}
+                  onChange={(e) => setMaterialRequestNumber(e.target.value)}
+                />
+              </label>
+            </div>
+
             <label className="flex flex-col w-full">
               <p className="text-slate-700 dark:text-slate-300 text-sm font-medium pb-1.5">Descrição da Manutenção Solicitada</p>
               <textarea 
