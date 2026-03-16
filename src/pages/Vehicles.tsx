@@ -190,7 +190,7 @@ export default function Vehicles() {
     
     try {
       const vehiclePayload: any = {
-        plate: formData.plate,
+        plate: formData.vehicle_type === 'maquina' ? `MAQ-${formData.prefix}` : formData.plate,
         model: formData.model,
         prefix: formData.prefix,
         vehicle_type: formData.vehicle_type,
@@ -675,10 +675,14 @@ export default function Vehicles() {
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-500 uppercase ml-1">Placa</label>
                       <input 
-                        required
-                        className="input-field uppercase"
-                        placeholder="ABC-1234"
-                        value={formData.plate}
+                        required={formData.vehicle_type === 'veiculo'}
+                        disabled={formData.vehicle_type === 'maquina'}
+                        className={cn(
+                          "input-field uppercase",
+                          formData.vehicle_type === 'maquina' && "bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-70"
+                        )}
+                        placeholder={formData.vehicle_type === 'maquina' ? "N/A" : "ABC-1234"}
+                        value={formData.vehicle_type === 'maquina' ? '' : formData.plate}
                         onChange={(e) => setFormData({...formData, plate: e.target.value.toUpperCase()})}
                       />
                     </div>
