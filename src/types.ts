@@ -4,6 +4,11 @@ export interface Vehicle {
   model: string;
   prefix: string;
   lastOdometer: number;
+  vehicle_type: 'veiculo' | 'maquina';
+  initial_odometer: number;
+  current_odometer: number;
+  initial_hourmeter: number;
+  current_hourmeter: number;
 }
 
 export interface RefuelingRecord {

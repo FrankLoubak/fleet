@@ -31,12 +31,16 @@ export default function Dashboard() {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [chartType, setChartType] = useState<'fuel' | 'maintenance'>('fuel');
 
   const [stats, setStats] = useState({
     fuelTotal: 0,
     maintenanceTotal: 0,
     fuelPrev: 0,
     maintenancePrev: 0,
+    fuelTotalLiters: 0,
+    fuelPrevLiters: 0,
+    fuelByType: {} as Record<string, number>,
     spendingData: [] as any[],
     participationData: [] as any[],
     comparisonData: [] as any[],
@@ -158,16 +162,27 @@ export default function Dashboard() {
       const fuelTotal = filteredRefuelings.reduce((acc, r) => acc + (r.totalValue || (r.quantity * (r.fuelType === 'Diesel' ? 6.20 : 5.80))), 0);
       const fuelPrev = prevRefuelings.reduce((acc, r) => acc + (r.totalValue || (r.quantity * (r.fuelType === 'Diesel' ? 6.20 : 5.80))), 0);
       
+      const fuelTotalLiters = filteredRefuelings.reduce((acc, r) => acc + (r.quantity || 0), 0);
+      const fuelPrevLiters = prevRefuelings.reduce((acc, r) => acc + (r.quantity || 0), 0);
+
+      const fuelByType = filteredRefuelings.reduce((acc, r) => {
+        const type = r.fuelType || 'Outro';
+        acc[type] = (acc[type] || 0) + (r.quantity || 0);
+        return acc;
+      }, {} as Record<string, number>);
+
       const maintenanceTotal = filteredMaintenances.reduce((acc, m) => acc + (m.totalValue || 1200), 0);
       const maintenancePrev = prevMaintenances.reduce((acc, m) => acc + (m.totalValue || 1200), 0);
 
       // Participation Data
       const vehicleSpending = vehicles.map((v: Vehicle) => {
         let fuel = 0;
+        let fuelQuantity = 0;
         let maintenance = 0;
         normalizedRefuelings.filter(r => r.vehicleId === v.id).forEach(r => {
           if (r.date >= startDate && r.date <= endDate) {
             fuel += r.totalValue || (r.quantity * (r.fuelType === 'Diesel' ? 6.20 : 5.80));
+            fuelQuantity += r.quantity || 0;
           }
         });
         normalizedMaintenances.filter(m => m.vehicleId === v.id).forEach(m => {
@@ -175,7 +190,14 @@ export default function Dashboard() {
             maintenance += m.totalValue || 1200;
           }
         });
-        return { id: v.id, name: v.plate, fuel, maintenance, total: fuel + maintenance };
+        return { 
+          id: v.id, 
+          name: v.plate, 
+          fuel, 
+          fuelQuantity,
+          maintenance, 
+          total: fuel + maintenance 
+        };
       }).sort((a, b) => b.total - a.total);
 
       // Participation Data (Fleet vs Selected)
@@ -264,6 +286,9 @@ export default function Dashboard() {
         maintenanceTotal,
         fuelPrev,
         maintenancePrev,
+        fuelTotalLiters,
+        fuelPrevLiters,
+        fuelByType,
         spendingData: last12Months,
         participationData,
         comparisonData,
@@ -426,23 +451,37 @@ export default function Dashboard() {
                     <Fuel size={20} />
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1 uppercase tracking-wider font-semibold">Período Selecionado</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold dark:text-white">R$ {stats.fuelTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                      <span className={cn(
-                        "text-sm font-bold flex items-center",
-                        stats.fuelTotal >= stats.fuelPrev ? "text-red-500" : "text-green-500"
-                      )}>
-                        {stats.fuelTotal >= stats.fuelPrev ? <TrendingUp size={14} className="mr-1" /> : <TrendingDown size={14} className="mr-1" />}
-                        {stats.fuelPrev > 0 ? (((stats.fuelTotal - stats.fuelPrev) / stats.fuelPrev) * 100).toFixed(1) : '0'}%
-                      </span>
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1 uppercase tracking-wider font-semibold">Período Selecionado</p>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-bold dark:text-white">{stats.fuelTotalLiters.toLocaleString('pt-BR')} L</span>
+                        <span className={cn(
+                          "text-sm font-bold flex items-center",
+                          stats.fuelTotalLiters >= stats.fuelPrevLiters ? "text-red-500" : "text-green-500"
+                        )}>
+                          {stats.fuelTotalLiters >= stats.fuelPrevLiters ? <TrendingUp size={14} className="mr-1" /> : <TrendingDown size={14} className="mr-1" />}
+                          {stats.fuelPrevLiters > 0 ? (((stats.fuelTotalLiters - stats.fuelPrevLiters) / stats.fuelPrevLiters) * 100).toFixed(1) : '0'}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-slate-400 mb-1 uppercase tracking-wider font-semibold">Período Anterior</p>
+                      <span className="text-sm font-medium text-slate-500">{stats.fuelPrevLiters.toLocaleString('pt-BR')} L</span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-400 mb-1 uppercase tracking-wider font-semibold">Período Anterior</p>
-                    <span className="text-sm font-medium text-slate-500">R$ {stats.fuelPrev.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-3 gap-2">
+                    {Object.entries(stats.fuelByType).map(([type, liters]) => (
+                      <div key={type} className="flex flex-col">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold truncate">{type}</span>
+                        <span className="text-xs font-bold dark:text-white">{new Intl.NumberFormat('pt-BR').format(liters as number)} L</span>
+                      </div>
+                    ))}
+                    {Object.keys(stats.fuelByType).length === 0 && (
+                      <span className="text-[10px] text-slate-400 italic col-span-3 text-center">Nenhum registro</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -656,8 +695,27 @@ export default function Dashboard() {
 
           {/* Charts Row 2 */}
           <div className="card p-6">
-            <h3 className="font-bold text-lg mb-1 dark:text-white">Gasto Total por Veículo</h3>
-            <p className="text-sm text-slate-500 mb-8">Soma total de Combustível e Manutenção por placa</p>
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="font-bold text-lg dark:text-white">
+                  {chartType === 'fuel' ? 'Consumo de Combustível por Veículo' : 'Gasto com Manutenção por Veículo'}
+                </h3>
+                <p className="text-sm text-slate-500">
+                  {chartType === 'fuel' ? 'Total de litros abastecidos por placa' : 'Soma total de manutenções por placa'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter size={16} className="text-slate-400" />
+                <select 
+                  className="bg-slate-100 dark:bg-slate-800 border-none text-xs font-bold py-1.5 px-3 rounded-lg focus:ring-0 outline-none dark:text-white cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                  value={chartType}
+                  onChange={(e) => setChartType(e.target.value as 'fuel' | 'maintenance')}
+                >
+                  <option value="fuel">Combustível (Litros)</option>
+                  <option value="maintenance">Manutenção (Valor)</option>
+                </select>
+              </div>
+            </div>
             <div className="h-72 relative">
               {loading && (
                 <div className="absolute inset-0 z-10 bg-white/50 dark:bg-background-dark/50 backdrop-blur-[1px] flex items-center justify-center rounded-2xl">
@@ -668,14 +726,23 @@ export default function Dashboard() {
                 <BarChart data={stats.vehicleSpendingData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fontSize: 12, fill: '#94a3b8'}}
+                    tickFormatter={(value) => chartType === 'fuel' ? `${value}L` : `R$ ${value}`}
+                  />
                   <Tooltip 
                     cursor={{fill: 'transparent'}}
                     contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                    formatter={(value: any) => chartType === 'fuel' ? [`${value} L`, 'Quantidade'] : [`R$ ${value.toLocaleString('pt-BR')}`, 'Valor Total']}
                   />
                   <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-                  <Bar dataKey="fuel" name="Combustível" fill="#1152d4" radius={[4, 4, 0, 0]} barSize={40} />
-                  <Bar dataKey="maintenance" name="Manutenção" fill="#f97316" radius={[4, 4, 0, 0]} barSize={40} />
+                  {chartType === 'fuel' ? (
+                    <Bar dataKey="fuelQuantity" name="Litros" fill="#1152d4" radius={[4, 4, 0, 0]} barSize={40} />
+                  ) : (
+                    <Bar dataKey="maintenance" name="Manutenção" fill="#f97316" radius={[4, 4, 0, 0]} barSize={40} />
+                  )}
                 </BarChart>
               </ResponsiveContainer>
             </div>

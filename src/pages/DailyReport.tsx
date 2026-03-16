@@ -188,15 +188,15 @@ export default function DailyReport() {
       
       const { data: vRecord, error: vrErr } = await supabase
         .from('vehicles')
-        .select('last_odometer')
+        .select('last_odometer, current_odometer, current_hourmeter, vehicle_type')
         .eq('id', selectedVehicle)
         .single();
 
       if (ljErr || vrErr) throw (ljErr || vrErr);
 
       const lastJourneyOdo = lastJ?.[0]?.end_odometer || 0;
-      const vehicleOdo = vRecord?.last_odometer || 0;
-      const minRequiredOdo = Math.max(lastJourneyOdo, vehicleOdo);
+      const vehicleOdo = vRecord?.vehicle_type === 'maquina' ? vRecord?.current_hourmeter : (vRecord?.current_odometer || vRecord?.last_odometer);
+      const minRequiredOdo = Math.max(lastJourneyOdo, vehicleOdo || 0);
 
       if (Number(startOdometer) < minRequiredOdo) {
         setLastOdometerValue(minRequiredOdo);
@@ -221,10 +221,17 @@ export default function DailyReport() {
       if (insertError) throw insertError;
 
       // Update vehicle last_odometer if start KM is higher
-      if (vehicle && Number(startOdometer) > vehicle.lastOdometer) {
+      const currentVal = vehicle?.vehicle_type === 'maquina' ? (vehicle.current_hourmeter || 0) : (vehicle?.current_odometer || vehicle?.lastOdometer || 0);
+      if (vehicle && Number(startOdometer) > currentVal) {
+        const updatePayload: any = { last_odometer: Number(startOdometer) };
+        if (vehicle.vehicle_type === 'maquina') {
+          updatePayload.current_hourmeter = Number(startOdometer);
+        } else {
+          updatePayload.current_odometer = Number(startOdometer);
+        }
         await supabase
           .from('vehicles')
-          .update({ last_odometer: Number(startOdometer) })
+          .update(updatePayload)
           .eq('id', selectedVehicle);
       }
 
@@ -324,9 +331,16 @@ export default function DailyReport() {
       if (error) throw error;
 
       // Update vehicle last_odometer
+      const updatePayload: any = { last_odometer: endOdom };
+      if (vehicle?.vehicle_type === 'maquina') {
+        updatePayload.current_hourmeter = endOdom;
+      } else {
+        updatePayload.current_odometer = endOdom;
+      }
+
       const { error: vError } = await supabase
         .from('vehicles')
-        .update({ last_odometer: endOdom })
+        .update(updatePayload)
         .eq('id', currentJourney!.vehicleId);
 
       if (vError) console.error('Error updating vehicle odometer:', vError);
@@ -374,6 +388,20 @@ export default function DailyReport() {
         .eq('id', previousJourney!.id);
 
       if (error) throw error;
+
+      // Update vehicle last_odometer
+      const prevVehicle = vehicles.find(v => v.id === previousJourney!.vehicleId);
+      const updatePayload: any = { last_odometer: endOdom };
+      if (prevVehicle?.vehicle_type === 'maquina') {
+        updatePayload.current_hourmeter = endOdom;
+      } else {
+        updatePayload.current_odometer = endOdom;
+      }
+
+      await supabase
+        .from('vehicles')
+        .update(updatePayload)
+        .eq('id', previousJourney!.vehicleId);
 
       setPreviousJourney(null);
       setIsPreviousJourneyModalOpen(false);
@@ -520,7 +548,9 @@ export default function DailyReport() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Quilometragem Inicial (KM)</label>
+              <label className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                {vehicle?.vehicle_type === 'maquina' ? 'Horímetro Inicial (Horas)' : 'Quilometragem Inicial (KM)'}
+              </label>
               <div className="relative flex items-center">
                 <Zap className="absolute left-4 text-slate-400 w-5 h-5" />
                 <input
@@ -528,7 +558,7 @@ export default function DailyReport() {
                     "input-field pl-12",
                     isJourneyOpen && "bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-70"
                   )}
-                  placeholder="Ex: 125430"
+                  placeholder={vehicle?.vehicle_type === 'maquina' ? "Ex: 500" : "Ex: 125430"}
                   type="number"
                   value={startOdometer}
                   onChange={(e) => setStartOdometer(e.target.value)}
@@ -704,12 +734,14 @@ export default function DailyReport() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">KM Final</label>
+                  <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">
+                    {vehicle?.vehicle_type === 'maquina' ? 'Horímetro Final (Horas)' : 'KM Final'}
+                  </label>
                   <div className="relative flex items-center">
                     <Zap className="absolute left-4 text-slate-400 w-5 h-5" />
                     <input
                       className="input-field pl-12"
-                      placeholder="Ex: 125580"
+                      placeholder={vehicle?.vehicle_type === 'maquina' ? "Ex: 510" : "Ex: 125580"}
                       type="number"
                       value={endOdometer}
                       onChange={(e) => setEndOdometer(e.target.value)}
@@ -717,9 +749,13 @@ export default function DailyReport() {
                     />
                   </div>
                   <div className="flex justify-between items-center px-1">
-                    <p className="text-[10px] text-slate-400">KM Inicial: {currentJourney?.startOdometer} KM</p>
+                    <p className="text-[10px] text-slate-400">
+                      {vehicle?.vehicle_type === 'maquina' ? 'Horímetro Inicial' : 'KM Inicial'}: {currentJourney?.startOdometer} {vehicle?.vehicle_type === 'maquina' ? 'h' : 'KM'}
+                    </p>
                     {endOdometer && Number(endOdometer) > (currentJourney?.startOdometer || 0) && (
-                      <p className="text-[10px] font-bold text-primary">KM Rodados: {Number(endOdometer) - (currentJourney?.startOdometer || 0)} KM</p>
+                      <p className="text-[10px] font-bold text-primary">
+                        {vehicle?.vehicle_type === 'maquina' ? 'Horas Trabalhadas' : 'KM Rodados'}: {Number(endOdometer) - (currentJourney?.startOdometer || 0)} {vehicle?.vehicle_type === 'maquina' ? 'h' : 'KM'}
+                      </p>
                     )}
                   </div>
                 </div>

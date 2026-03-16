@@ -93,7 +93,10 @@ export default function Vehicles() {
     plate: '',
     model: '',
     prefix: '',
-    lastOdometer: 0
+    lastOdometer: 0,
+    vehicle_type: 'veiculo' as 'veiculo' | 'maquina',
+    initial_odometer: 0,
+    initial_hourmeter: 0
   });
 
   useEffect(() => {
@@ -129,11 +132,18 @@ export default function Vehicles() {
       const enrichedVehicles = (baseVehicles || []).map(vehicle => {
         // Find the latest closed journey for this vehicle
         const lastJourney = allJourneys?.find(j => j.vehicle_id === vehicle.id);
-        const currentKm = lastJourney?.end_odometer || vehicle.last_odometer;
+        
+        // Use the latest odometer from journeys if available, otherwise use the one from the vehicle table
+        const currentKm = lastJourney?.end_odometer || vehicle.current_odometer || vehicle.last_odometer || 0;
 
         return {
           ...vehicle,
-          lastOdometer: vehicle.last_odometer, // compatibility with existing code
+          lastOdometer: vehicle.last_odometer || 0,
+          vehicle_type: vehicle.vehicle_type || 'veiculo',
+          initial_odometer: vehicle.initial_odometer || 0,
+          current_odometer: vehicle.current_odometer || 0,
+          initial_hourmeter: vehicle.initial_hourmeter || 0,
+          current_hourmeter: vehicle.current_hourmeter || 0,
           currentKm,
           lastUpdate: lastJourney?.end_time ? new Date(lastJourney.end_time).toLocaleDateString('pt-BR') : 'Sem registros'
         };
@@ -154,7 +164,10 @@ export default function Vehicles() {
         plate: vehicle.plate,
         model: vehicle.model,
         prefix: vehicle.prefix,
-        lastOdometer: vehicle.lastOdometer
+        lastOdometer: vehicle.lastOdometer,
+        vehicle_type: vehicle.vehicle_type || 'veiculo',
+        initial_odometer: vehicle.initial_odometer || 0,
+        initial_hourmeter: vehicle.initial_hourmeter || 0
       });
     } else {
       setEditingVehicle(null);
@@ -162,7 +175,10 @@ export default function Vehicles() {
         plate: '',
         model: '',
         prefix: '',
-        lastOdometer: 0
+        lastOdometer: 0,
+        vehicle_type: 'veiculo',
+        initial_odometer: 0,
+        initial_hourmeter: 0
       });
     }
     setIsModalOpen(true);
@@ -173,12 +189,21 @@ export default function Vehicles() {
     setLoading(true);
     
     try {
-      const vehiclePayload = {
+      const vehiclePayload: any = {
         plate: formData.plate,
         model: formData.model,
         prefix: formData.prefix,
-        last_odometer: formData.lastOdometer
+        vehicle_type: formData.vehicle_type,
+        initial_odometer: formData.initial_odometer,
+        initial_hourmeter: formData.initial_hourmeter,
       };
+
+      if (!editingVehicle) {
+        // On creation, set current values to initial values
+        vehiclePayload.current_odometer = formData.initial_odometer;
+        vehiclePayload.current_hourmeter = formData.initial_hourmeter;
+        vehiclePayload.last_odometer = formData.initial_odometer;
+      }
 
       if (editingVehicle) {
         // Update
@@ -415,9 +440,10 @@ export default function Vehicles() {
                 <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-500 uppercase font-semibold">
                   <tr>
                     <th className="px-6 py-4">Veículo</th>
+                    <th className="px-6 py-4">Tipo</th>
                     <th className="px-6 py-4">Placa</th>
                     <th className="px-6 py-4">Prefixo</th>
-                    <th className="px-6 py-4">Último KM</th>
+                    <th className="px-6 py-4">Status Atual</th>
                     <th className="px-6 py-4">Última Atividade</th>
                     <th className="px-6 py-4 text-right">Ações</th>
                   </tr>
@@ -428,13 +454,21 @@ export default function Vehicles() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                            <Truck size={20} />
+                            {vehicle.vehicle_type === 'maquina' ? <Clock size={20} /> : <Truck size={20} />}
                           </div>
                           <div>
                             <p className="font-bold dark:text-white">{vehicle.model}</p>
                             <p className="text-xs text-slate-500">ID: {vehicle.id}</p>
                           </div>
                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider",
+                          vehicle.vehicle_type === 'maquina' ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                        )}>
+                          {vehicle.vehicle_type === 'maquina' ? 'Máquina' : 'Veículo'}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded text-xs font-bold dark:text-slate-300 uppercase tracking-wider">
@@ -446,8 +480,15 @@ export default function Vehicles() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
-                          <span className="text-sm font-bold dark:text-white">{vehicle.currentKm.toLocaleString('pt-BR')} km</span>
-                          <span className="text-[10px] text-slate-400 uppercase font-bold">Odômetro Atual</span>
+                          <span className="text-sm font-bold dark:text-white">
+                            {vehicle.vehicle_type === 'maquina' 
+                              ? `${(vehicle.current_hourmeter || 0).toLocaleString('pt-BR')} h`
+                              : `${(vehicle.current_odometer || 0).toLocaleString('pt-BR')} km`
+                            }
+                          </span>
+                          <span className="text-[10px] text-slate-400 uppercase font-bold">
+                            {vehicle.vehicle_type === 'maquina' ? 'Horímetro Atual' : 'Odômetro Atual'}
+                          </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-500">
@@ -506,11 +547,19 @@ export default function Vehicles() {
                 <div key={vehicle.id} className="card p-6 hover:shadow-xl transition-all group border-t-4 border-t-transparent hover:border-t-primary">
                   <div className="flex justify-between items-start mb-6">
                     <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 group-hover:bg-primary group-hover:text-white transition-all">
-                      <Truck size={24} />
+                      {vehicle.vehicle_type === 'maquina' ? <Clock size={24} /> : <Truck size={24} />}
                     </div>
-                    <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-[10px] font-bold dark:text-slate-300 uppercase tracking-widest">
-                      {vehicle.plate}
-                    </span>
+                    <div className="flex flex-col items-end gap-2">
+                      <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-[10px] font-bold dark:text-slate-300 uppercase tracking-widest">
+                        {vehicle.plate}
+                      </span>
+                      <span className={cn(
+                        "px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider",
+                        vehicle.vehicle_type === 'maquina' ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                      )}>
+                        {vehicle.vehicle_type === 'maquina' ? 'Máquina' : 'Veículo'}
+                      </span>
+                    </div>
                   </div>
                   
                   <div className="space-y-1 mb-6">
@@ -520,8 +569,15 @@ export default function Vehicles() {
 
                   <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl mb-6">
                     <div>
-                      <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Último KM</p>
-                      <p className="text-sm font-bold dark:text-white">{vehicle.currentKm.toLocaleString('pt-BR')} km</p>
+                      <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">
+                        {vehicle.vehicle_type === 'maquina' ? 'Horímetro' : 'Odômetro'}
+                      </p>
+                      <p className="text-sm font-bold dark:text-white">
+                        {vehicle.vehicle_type === 'maquina' 
+                          ? `${(vehicle.current_hourmeter || 0).toLocaleString('pt-BR')} h`
+                          : `${(vehicle.current_odometer || 0).toLocaleString('pt-BR')} km`
+                        }
+                      </p>
                     </div>
                     <div>
                       <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">Atualização</p>
@@ -592,6 +648,19 @@ export default function Vehicles() {
                 
                 <form onSubmit={handleSaveVehicle} className="p-6 space-y-4">
                   <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Tipo de Veículo</label>
+                    <select 
+                      required
+                      className="input-field"
+                      value={formData.vehicle_type}
+                      onChange={(e) => setFormData({...formData, vehicle_type: e.target.value as 'veiculo' | 'maquina'})}
+                    >
+                      <option value="veiculo">Veículo (KM)</option>
+                      <option value="maquina">Máquina (Horas)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 uppercase ml-1">Modelo</label>
                     <input 
                       required
@@ -625,17 +694,31 @@ export default function Vehicles() {
                     </div>
                   </div>
                   
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Odômetro Inicial (KM)</label>
-                    <input 
-                      required
-                      type="number"
-                      className="input-field"
-                      placeholder="0"
-                      value={formData.lastOdometer}
-                      onChange={(e) => setFormData({...formData, lastOdometer: parseInt(e.target.value) || 0})}
-                    />
-                  </div>
+                  {formData.vehicle_type === 'veiculo' ? (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-500 uppercase ml-1">Odômetro Inicial (KM)</label>
+                      <input 
+                        required
+                        type="number"
+                        className="input-field"
+                        placeholder="0"
+                        value={formData.initial_odometer}
+                        onChange={(e) => setFormData({...formData, initial_odometer: parseInt(e.target.value) || 0})}
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-500 uppercase ml-1">Horímetro Inicial (Horas)</label>
+                      <input 
+                        required
+                        type="number"
+                        className="input-field"
+                        placeholder="0"
+                        value={formData.initial_hourmeter}
+                        onChange={(e) => setFormData({...formData, initial_hourmeter: parseInt(e.target.value) || 0})}
+                      />
+                    </div>
+                  )}
 
                   <div className="pt-4 flex gap-3">
                     <button 
