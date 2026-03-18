@@ -18,6 +18,7 @@ import {
   ArrowRight,
   Droplets,
   Wrench as WrenchIcon,
+  ClipboardList,
   Info,
   Download,
   Loader2
@@ -44,6 +45,12 @@ export default function Journeys() {
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
   const [editingJourney, setEditingJourney] = useState<Journey | null>(null);
   const [journeyToDelete, setJourneyToDelete] = useState<Journey | null>(null);
+  const [associatedRecords, setAssociatedRecords] = useState<{
+    refuelings: number;
+    maintenances: number;
+    maintenanceRequests: number;
+  }>({ refuelings: 0, maintenances: 0, maintenanceRequests: 0 });
+  const [isCheckingAssociated, setIsCheckingAssociated] = useState(false);
   const [selectedVehicleForDetails, setSelectedVehicleForDetails] = useState<Vehicle | null>(null);
   const [vehicleFuelings, setVehicleFuelings] = useState<RefuelingRecord[]>([]);
   const [vehicleMaintenances, setVehicleMaintenances] = useState<MaintenanceRecord[]>([]);
@@ -388,10 +395,98 @@ export default function Journeys() {
     fetchMaintenances();
   }, [isMaintenanceModalOpen, selectedVehicleForDetails, modalStartDate, modalEndDate]);
 
+  useEffect(() => {
+    const fetchAssociatedRecords = async () => {
+      if (!journeyToDelete || !isDeleteModalOpen) return;
+      
+      setIsCheckingAssociated(true);
+      try {
+        const startTime = journeyToDelete.startTime;
+        const endTime = journeyToDelete.endTime || new Date().toISOString();
+        const vehicleId = journeyToDelete.vehicleId;
+
+        // Fetch refuelings
+        const { count: refCount, error: refError } = await supabase
+          .from('refuelings')
+          .select('*', { count: 'exact', head: true })
+          .eq('vehicle_id', vehicleId)
+          .gte('created_at', startTime)
+          .lte('created_at', endTime);
+
+        // Fetch maintenances
+        const { count: maintCount, error: maintError } = await supabase
+          .from('maintenances')
+          .select('*', { count: 'exact', head: true })
+          .eq('vehicle_id', vehicleId)
+          .gte('created_at', startTime)
+          .lte('created_at', endTime);
+
+        // Fetch maintenance requests
+        const { count: reqCount, error: reqError } = await supabase
+          .from('maintenance_requests')
+          .select('*', { count: 'exact', head: true })
+          .eq('vehicle_id', vehicleId)
+          .gte('created_at', startTime)
+          .lte('created_at', endTime);
+
+        if (refError) throw refError;
+        if (maintError) throw maintError;
+        if (reqError) throw reqError;
+
+        setAssociatedRecords({
+          refuelings: refCount || 0,
+          maintenances: maintCount || 0,
+          maintenanceRequests: reqCount || 0
+        });
+      } catch (err) {
+        console.error('Error fetching associated records:', err);
+      } finally {
+        setIsCheckingAssociated(false);
+      }
+    };
+
+    fetchAssociatedRecords();
+  }, [journeyToDelete, isDeleteModalOpen]);
+
   const handleDeleteJourney = async () => {
     if (!journeyToDelete) return;
     setLoading(true);
     try {
+      const startTime = journeyToDelete.startTime;
+      const endTime = journeyToDelete.endTime || new Date().toISOString();
+      const vehicleId = journeyToDelete.vehicleId;
+
+      // Delete refuelings
+      const { error: refError } = await supabase
+        .from('refuelings')
+        .delete()
+        .eq('vehicle_id', vehicleId)
+        .gte('created_at', startTime)
+        .lte('created_at', endTime);
+      
+      if (refError) throw refError;
+
+      // Delete maintenances
+      const { error: maintError } = await supabase
+        .from('maintenances')
+        .delete()
+        .eq('vehicle_id', vehicleId)
+        .gte('created_at', startTime)
+        .lte('created_at', endTime);
+      
+      if (maintError) throw maintError;
+
+      // Delete maintenance requests
+      const { error: reqError } = await supabase
+        .from('maintenance_requests')
+        .delete()
+        .eq('vehicle_id', vehicleId)
+        .gte('created_at', startTime)
+        .lte('created_at', endTime);
+      
+      if (reqError) throw reqError;
+
+      // Delete the journey itself
       const { error } = await supabase
         .from('journeys')
         .delete()
@@ -401,6 +496,7 @@ export default function Journeys() {
 
       setIsDeleteModalOpen(false);
       setJourneyToDelete(null);
+      setAssociatedRecords({ refuelings: 0, maintenances: 0, maintenanceRequests: 0 });
       await loadData();
     } catch (err) {
       console.error('Error deleting journey:', err);
@@ -761,11 +857,63 @@ export default function Journeys() {
                 <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                   <AlertTriangle size={32} />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Excluir Jornada?</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Esta ação não pode ser desfeita.</p>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Excluir Jornada?</h3>
+                {journeyToDelete && (
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-4">
+                    {vehicles.find(v => v.id === journeyToDelete.vehicleId)?.plate} • {new Date(journeyToDelete.startTime).toLocaleDateString('pt-BR')}
+                  </p>
+                )}
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Esta ação não pode ser desfeita.</p>
+                
+                {(associatedRecords.refuelings > 0 || associatedRecords.maintenances > 0 || associatedRecords.maintenanceRequests > 0) && (
+                  <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-xl text-left">
+                    <p className="text-xs font-bold text-amber-800 dark:text-amber-400 uppercase mb-2 flex items-center gap-2">
+                      <Info size={14} />
+                      Registros Vinculados
+                    </p>
+                    <p className="text-sm text-amber-700 dark:text-amber-500 leading-relaxed">
+                      Ao excluir esta jornada, os seguintes registros realizados durante o período também serão excluídos:
+                    </p>
+                    <ul className="mt-2 space-y-1">
+                      {associatedRecords.refuelings > 0 && (
+                        <li className="text-sm text-amber-700 dark:text-amber-500 flex items-center gap-2">
+                          <Droplets size={14} className="text-blue-500" />
+                          {associatedRecords.refuelings} {associatedRecords.refuelings === 1 ? 'Abastecimento' : 'Abastecimentos'}
+                        </li>
+                      )}
+                      {associatedRecords.maintenances > 0 && (
+                        <li className="text-sm text-amber-700 dark:text-amber-500 flex items-center gap-2">
+                          <WrenchIcon size={14} className="text-amber-600" />
+                          {associatedRecords.maintenances} {associatedRecords.maintenances === 1 ? 'Manutenção Executada' : 'Manutenções Executadas'}
+                        </li>
+                      )}
+                      {associatedRecords.maintenanceRequests > 0 && (
+                        <li className="text-sm text-amber-700 dark:text-amber-500 flex items-center gap-2">
+                          <ClipboardList size={14} className="text-purple-500" />
+                          {associatedRecords.maintenanceRequests} {associatedRecords.maintenanceRequests === 1 ? 'Pedido de Manutenção' : 'Pedidos de Manutenção'}
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+
                 <div className="flex gap-3">
-                  <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">Cancelar</button>
-                  <button onClick={handleDeleteJourney} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-600/20">Excluir</button>
+                  <button 
+                    onClick={() => {
+                      setIsDeleteModalOpen(false);
+                      setAssociatedRecords({ refuelings: 0, maintenances: 0, maintenanceRequests: 0 });
+                    }} 
+                    className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={handleDeleteJourney} 
+                    disabled={loading || isCheckingAssociated}
+                    className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader2 size={18} className="animate-spin" /> : 'Excluir'}
+                  </button>
                 </div>
               </div>
             </div>

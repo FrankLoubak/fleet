@@ -4,14 +4,15 @@ import {
   ArrowLeft, Search, Calendar, Filter, Truck, 
   Wrench, ClipboardList, Loader2, Download, 
   ChevronRight, AlertCircle, Clock, CheckCircle2,
-  Check, X, Pencil, Save, Upload, FileText, Link
+  Check, X, Pencil, Save, Upload, FileText, Link,
+  Plus, Trash2
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { cn } from '../utils';
-import { User as UserType, Vehicle, MaintenanceRecord, MaintenanceRequest } from '../types';
+import { User as UserType, Vehicle, MaintenanceRecord, MaintenanceRequest, MaintenanceType } from '../types';
 import { supabase } from '../lib/supabase';
 
-type ViewMode = 'executadas' | 'autorizadas' | 'pendentes';
+type ViewMode = 'executadas' | 'autorizadas' | 'pendentes' | 'canceladas';
 
 export default function MaintenanceList() {
   const navigate = useNavigate();
@@ -36,12 +37,28 @@ export default function MaintenanceList() {
   
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
   const [editingRequest, setEditingRequest] = useState<MaintenanceRequest | null>(null);
+  const [editingMaintenance, setEditingMaintenance] = useState<MaintenanceRecord | null>(null);
   const [editForm, setEditForm] = useState({
     vehicleId: '',
     date: '',
     odometer: 0,
-    type: 'Preventiva',
+    type: 'Preventiva' as any,
+    description: '',
+    budgetValue: 0,
+    serviceRequestNumber: '',
+    materialRequestNumber: '',
+    documentUrl: '',
+    provider: '',
+    status: 'pendente' as any
+  });
+
+  const [newRequestForm, setNewRequestForm] = useState({
+    vehicleId: '',
+    date: new Date().toISOString().split('T')[0],
+    odometer: 0,
+    type: 'Mecanica' as MaintenanceType,
     description: '',
     budgetValue: 0,
     serviceRequestNumber: '',
@@ -72,11 +89,11 @@ export default function MaintenanceList() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      if (viewMode === 'executadas' || viewMode === 'autorizadas') {
+      if (viewMode === 'executadas' || viewMode === 'autorizadas' || viewMode === 'canceladas') {
         let query = supabase
           .from('maintenances')
           .select('*')
-          .eq('status', viewMode === 'executadas' ? 'executada' : 'pendente')
+          .eq('status', viewMode === 'executadas' ? 'executada' : viewMode === 'autorizadas' ? 'pendente' : 'cancelada')
           .gte('date', startDate)
           .lte('date', endDate)
           .order('date', { ascending: false });
@@ -180,52 +197,218 @@ export default function MaintenanceList() {
     }
   };
 
-  const handleOpenEdit = (request: MaintenanceRequest) => {
-    setEditingRequest(request);
-    setEditForm({
-      vehicleId: request.vehicleId,
-      date: request.date,
-      odometer: request.odometer,
-      type: request.type,
-      description: request.description,
-      budgetValue: request.budgetValue || 0,
-      serviceRequestNumber: request.serviceRequestNumber || '',
-      materialRequestNumber: request.materialRequestNumber || '',
-      documentUrl: request.documentUrl || ''
-    });
-    setIsEditModalOpen(true);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingRequest) return;
-    
+  const handleCreateRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     try {
       const { error } = await supabase
         .from('maintenance_requests')
-        .update({
-          vehicle_id: editForm.vehicleId,
-          date: editForm.date,
-          odometer: editForm.odometer,
-          type: editForm.type,
-          description: editForm.description,
-          budget_value: editForm.budgetValue,
-          service_request_number: editForm.serviceRequestNumber,
-          material_request_number: editForm.materialRequestNumber,
-          document_url: editForm.documentUrl
-        })
-        .eq('id', editingRequest.id);
+        .insert([{
+          vehicle_id: newRequestForm.vehicleId,
+          user_id: currentUser?.id,
+          date: newRequestForm.date,
+          odometer: newRequestForm.odometer,
+          type: newRequestForm.type,
+          description: newRequestForm.description,
+          budget_value: newRequestForm.budgetValue,
+          service_request_number: newRequestForm.serviceRequestNumber,
+          material_request_number: newRequestForm.material_request_number,
+          document_url: newRequestForm.documentUrl,
+          status: 'pendente'
+        }]);
 
       if (error) throw error;
 
-      alert('Solicitação atualizada com sucesso!');
+      setIsNewRequestModalOpen(false);
+      setNewRequestForm({
+        vehicleId: '',
+        date: new Date().toISOString().split('T')[0],
+        odometer: 0,
+        type: 'Mecanica' as MaintenanceType,
+        description: '',
+        budgetValue: 0,
+        serviceRequestNumber: '',
+        materialRequestNumber: '',
+        documentUrl: ''
+      });
+      fetchData();
+    } catch (err) {
+      console.error('Error creating request:', err);
+      alert('Erro ao criar solicitação.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenEdit = (item: MaintenanceRequest | MaintenanceRecord) => {
+    if ('userId' in item) {
+      // It's a Request
+      setEditingRequest(item);
+      setEditingMaintenance(null);
+      setEditForm({
+        vehicleId: item.vehicleId,
+        date: item.date,
+        odometer: item.odometer,
+        type: item.type,
+        description: item.description,
+        budgetValue: item.budgetValue || 0,
+        serviceRequestNumber: item.serviceRequestNumber || '',
+        materialRequestNumber: item.materialRequestNumber || '',
+        documentUrl: item.documentUrl || '',
+        provider: '',
+        status: item.status
+      });
+    } else {
+      // It's a Maintenance Record
+      setEditingMaintenance(item);
+      setEditingRequest(null);
+      setEditForm({
+        vehicleId: item.vehicleId,
+        date: item.date,
+        odometer: item.mileage,
+        type: item.type,
+        description: item.description,
+        budgetValue: item.totalValue || 0,
+        serviceRequestNumber: '',
+        materialRequestNumber: '',
+        documentUrl: '',
+        provider: item.provider,
+        status: item.status
+      });
+    }
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    setLoading(true);
+    try {
+      if (editingRequest) {
+        const { error } = await supabase
+          .from('maintenance_requests')
+          .update({
+            vehicle_id: editForm.vehicleId,
+            date: editForm.date,
+            odometer: editForm.odometer,
+            type: editForm.type,
+            description: editForm.description,
+            budget_value: editForm.budgetValue,
+            service_request_number: editForm.serviceRequestNumber,
+            material_request_number: editForm.materialRequestNumber,
+            document_url: editForm.documentUrl
+          })
+          .eq('id', editingRequest.id);
+
+        if (error) throw error;
+      } else if (editingMaintenance) {
+        const { error } = await supabase
+          .from('maintenances')
+          .update({
+            vehicle_id: editForm.vehicleId,
+            date: editForm.date,
+            mileage: editForm.odometer,
+            type: editForm.type,
+            description: editForm.description,
+            total_value: editForm.budgetValue,
+            provider: editForm.provider,
+            status: editForm.status
+          })
+          .eq('id', editingMaintenance.id);
+
+        if (error) throw error;
+      }
+
+      alert('Registro atualizado com sucesso!');
       setIsEditModalOpen(false);
       fetchData();
     } catch (err) {
-      console.error('Error updating request:', err);
-      alert('Erro ao atualizar solicitação.');
+      console.error('Error updating record:', err);
+      alert('Erro ao atualizar registro.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancelMaintenance = async (m: MaintenanceRecord) => {
+    if (!window.confirm('Deseja cancelar esta manutenção? Se ela foi gerada por uma solicitação, a solicitação também será cancelada.')) return;
+    
+    setActionLoading(m.id);
+    try {
+      // 1. Update maintenance status to 'cancelada'
+      const { error: mError } = await supabase
+        .from('maintenances')
+        .update({ status: 'cancelada' })
+        .eq('id', m.id);
+      
+      if (mError) throw mError;
+
+      // 2. If it has a requestId, cancel the request too
+      if (m.requestId) {
+        const { error: rError } = await supabase
+          .from('maintenance_requests')
+          .update({ status: 'cancelada' })
+          .eq('id', m.requestId);
+        
+        if (rError) throw rError;
+      }
+
+      alert('Manutenção cancelada com sucesso!');
+      fetchData();
+    } catch (err) {
+      console.error('Error cancelling maintenance:', err);
+      alert('Erro ao cancelar manutenção.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteMaintenance = async (id: string, table: 'maintenances' | 'maintenance_requests') => {
+    if (!window.confirm('Deseja excluir este registro permanentemente?')) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      alert('Registro excluído com sucesso!');
+      fetchData();
+    } catch (err) {
+      console.error('Error deleting record:', err);
+      alert('Erro ao excluir registro.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFinishMaintenance = async (m: MaintenanceRecord) => {
+    if (!window.confirm('Deseja marcar esta manutenção como executada?')) return;
+    
+    setActionLoading(m.id);
+    try {
+      const { error } = await supabase
+        .from('maintenances')
+        .update({ status: 'executada' })
+        .eq('id', m.id);
+      
+      if (error) throw error;
+
+      // Also mark request as concluida if exists
+      if (m.requestId) {
+        await supabase
+          .from('maintenance_requests')
+          .update({ status: 'concluida' })
+          .eq('id', m.requestId);
+      }
+
+      alert('Manutenção concluída com sucesso!');
+      fetchData();
+    } catch (err) {
+      console.error('Error finishing maintenance:', err);
+      alert('Erro ao concluir manutenção.');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -300,6 +483,13 @@ export default function MaintenanceList() {
             <h2 className="text-lg font-bold dark:text-white">Gestão de Manutenções</h2>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsNewRequestModalOpen(true)}
+              className="px-4 py-2 bg-primary text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
+            >
+              <Plus size={18} />
+              Nova Solicitação
+            </button>
              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                 <button
                   onClick={() => setViewMode('executadas')}
@@ -333,6 +523,17 @@ export default function MaintenanceList() {
                   )}
                 >
                   Visualizar Pendentes
+                </button>
+                <button
+                  onClick={() => setViewMode('canceladas')}
+                  className={cn(
+                    "px-4 py-1.5 text-xs font-bold rounded-lg transition-all",
+                    viewMode === 'canceladas' 
+                      ? "bg-white dark:bg-slate-700 text-primary shadow-sm" 
+                      : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                  )}
+                >
+                  Visualizar Canceladas
                 </button>
              </div>
           </div>
@@ -406,15 +607,18 @@ export default function MaintenanceList() {
                 <div className={cn(
                   "w-10 h-10 rounded-xl flex items-center justify-center",
                   viewMode === 'executadas' ? "bg-green-100 text-green-600" : 
-                  viewMode === 'autorizadas' ? "bg-blue-100 text-blue-600" : "bg-amber-100 text-amber-600"
+                  viewMode === 'autorizadas' ? "bg-blue-100 text-blue-600" : 
+                  viewMode === 'canceladas' ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"
                 )}>
                   {viewMode === 'executadas' ? <CheckCircle2 size={20} /> : 
-                   viewMode === 'autorizadas' ? <Wrench size={20} /> : <Clock size={20} />}
+                   viewMode === 'autorizadas' ? <Wrench size={20} /> : 
+                   viewMode === 'canceladas' ? <X size={20} /> : <Clock size={20} />}
                 </div>
                 <div>
                   <h3 className="font-bold text-lg dark:text-white">
                     {viewMode === 'executadas' ? 'Manutenções Executadas' : 
-                     viewMode === 'autorizadas' ? 'Manutenções Autorizadas' : 'Solicitações Pendentes'}
+                     viewMode === 'autorizadas' ? 'Manutenções Autorizadas' : 
+                     viewMode === 'canceladas' ? 'Manutenções Canceladas' : 'Solicitações Pendentes'}
                   </h3>
                   <p className="text-xs text-slate-500">
                     {viewMode === 'pendentes' 
@@ -441,7 +645,8 @@ export default function MaintenanceList() {
                       <th className="px-6 py-4">Status</th>
                       <th className="px-6 py-4">Prestador</th>
                       <th className="px-6 py-4">Descrição</th>
-                      <th className="px-6 py-4 text-right">Valor Total</th>
+                      <th className="px-6 py-4">Valor Total</th>
+                      <th className="px-6 py-4 text-right">Ações</th>
                     </tr>
                   ) : (
                     <tr>
@@ -479,9 +684,11 @@ export default function MaintenanceList() {
                               "px-2 py-1 text-[10px] font-bold rounded-md uppercase",
                               m.status === 'executada' 
                                 ? "bg-green-100 text-green-600" 
+                                : m.status === 'cancelada'
+                                ? "bg-red-100 text-red-600"
                                 : "bg-amber-100 text-amber-600"
                             )}>
-                              {m.status === 'executada' ? 'Executada' : 'Pendente'}
+                              {m.status === 'executada' ? 'Executada' : m.status === 'cancelada' ? 'Cancelada' : 'Pendente'}
                             </span>
                           </td>
                           <td className="px-6 py-4">
@@ -491,9 +698,38 @@ export default function MaintenanceList() {
                             <p className="text-sm text-slate-500 max-w-xs truncate" title={m.description}>{m.description}</p>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <span className="text-sm font-bold text-slate-900 dark:text-white">
-                              R$ {m.totalValue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </span>
+                            <div className="flex items-center justify-end gap-2">
+                              {m.status === 'pendente' && (
+                                <button
+                                  onClick={() => handleFinishMaintenance(m)}
+                                  className="p-2 bg-green-100 text-green-600 hover:bg-green-200 rounded-lg transition-colors"
+                                  title="Concluir Manutenção"
+                                >
+                                  <Check size={18} />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleOpenEdit(m)}
+                                className="p-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                                title="Editar"
+                              >
+                                <Pencil size={18} />
+                              </button>
+                              <button
+                                onClick={() => handleCancelMaintenance(m)}
+                                className="p-2 bg-amber-100 text-amber-600 hover:bg-amber-200 rounded-lg transition-colors"
+                                title="Cancelar Manutenção"
+                              >
+                                <X size={18} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteMaintenance(m.id, 'maintenances')}
+                                className="p-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg transition-colors"
+                                title="Excluir Permanentemente"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -556,6 +792,13 @@ export default function MaintenanceList() {
                                   <AlertCircle size={18} />
                                 )}
                               </button>
+                              <button
+                                onClick={() => handleDeleteMaintenance(r.id, 'maintenance_requests')}
+                                className="p-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg transition-colors"
+                                title="Excluir Solicitação"
+                              >
+                                <Trash2 size={18} />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -574,6 +817,169 @@ export default function MaintenanceList() {
       </main>
 
       {/* Edit Request Modal */}
+        {/* New Request Modal */}
+        {isNewRequestModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Nova Solicitação de Manutenção</h3>
+                <button 
+                  onClick={() => setIsNewRequestModalOpen(false)}
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateRequest} className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Veículo</label>
+                    <select 
+                      required
+                      className="input-field"
+                      value={newRequestForm.vehicleId}
+                      onChange={(e) => setNewRequestForm({...newRequestForm, vehicleId: e.target.value})}
+                    >
+                      <option value="">Selecione o veículo</option>
+                      {vehicles.map(v => (
+                        <option key={v.id} value={v.id}>{v.plate} - {v.model}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Data</label>
+                    <input 
+                      required
+                      type="date"
+                      className="input-field"
+                      value={newRequestForm.date}
+                      onChange={(e) => setNewRequestForm({...newRequestForm, date: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Quilometragem (KM)</label>
+                    <input 
+                      required
+                      type="number"
+                      className="input-field"
+                      value={newRequestForm.odometer}
+                      onChange={(e) => setNewRequestForm({...newRequestForm, odometer: parseInt(e.target.value) || 0})}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Tipo de Manutenção</label>
+                    <select 
+                      required
+                      className="input-field"
+                      value={newRequestForm.type}
+                      onChange={(e) => setNewRequestForm({...newRequestForm, type: e.target.value as MaintenanceType})}
+                    >
+                      <option value="Mecanica">Mecanica</option>
+                      <option value="Eletrica">Eletrica</option>
+                      <option value="Acessórios">Acessórios</option>
+                      <option value="Borracharia">Borracharia</option>
+                      <option value="Ar de serviço">Ar de serviço</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Valor Orçado (R$)</label>
+                    <input 
+                      required
+                      type="number"
+                      step="0.01"
+                      className="input-field"
+                      value={newRequestForm.budgetValue}
+                      onChange={(e) => setNewRequestForm({...newRequestForm, budgetValue: parseFloat(e.target.value) || 0})}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Nº Solicitação Serviço</label>
+                    <input 
+                      required
+                      type="text"
+                      className="input-field"
+                      value={newRequestForm.serviceRequestNumber}
+                      onChange={(e) => setNewRequestForm({...newRequestForm, serviceRequestNumber: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Nº Solicitação Material</label>
+                    <input 
+                      required
+                      type="text"
+                      className="input-field"
+                      value={newRequestForm.materialRequestNumber}
+                      onChange={(e) => setNewRequestForm({...newRequestForm, materialRequestNumber: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Documento (URL)</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text"
+                        className="input-field flex-1"
+                        placeholder="URL do documento..."
+                        value={newRequestForm.documentUrl}
+                        onChange={(e) => setNewRequestForm({...newRequestForm, documentUrl: e.target.value})}
+                      />
+                      <label className="cursor-pointer px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center justify-center">
+                        <Upload size={18} className="text-slate-500" />
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              // Reusing the same upload logic
+                              handleFileUpload(file);
+                            }
+                          }} 
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Descrição do Serviço</label>
+                  <textarea 
+                    required
+                    className="input-field min-h-[100px] resize-none"
+                    value={newRequestForm.description}
+                    onChange={(e) => setNewRequestForm({...newRequestForm, description: e.target.value})}
+                  />
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => setIsNewRequestModalOpen(false)}
+                    className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                    Criar Solicitação
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
       {isEditModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
@@ -635,12 +1041,43 @@ export default function MaintenanceList() {
                   <select 
                     className="input-field h-11 text-sm"
                     value={editForm.type}
-                    onChange={(e) => setEditForm({...editForm, type: e.target.value})}
+                    onChange={(e) => setEditForm({...editForm, type: e.target.value as any})}
                   >
                     <option value="Preventiva">Preventiva</option>
                     <option value="Corretiva">Corretiva</option>
+                    <option value="Mecanica">Mecânica</option>
+                    <option value="Eletrica">Elétrica</option>
+                    <option value="Acessórios">Acessórios</option>
+                    <option value="Borracharia">Borracharia</option>
+                    <option value="Ar de serviço">Ar de serviço</option>
                   </select>
                 </div>
+
+                {editingMaintenance && (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Prestador</label>
+                      <input 
+                        type="text" 
+                        className="input-field h-11 text-sm"
+                        value={editForm.provider}
+                        onChange={(e) => setEditForm({...editForm, provider: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Status</label>
+                      <select 
+                        className="input-field h-11 text-sm"
+                        value={editForm.status}
+                        onChange={(e) => setEditForm({...editForm, status: e.target.value as any})}
+                      >
+                        <option value="pendente">Pendente</option>
+                        <option value="executada">Executada</option>
+                        <option value="cancelada">Cancelada</option>
+                      </select>
+                    </div>
+                  </>
+                )}
 
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Descrição do Problema</label>

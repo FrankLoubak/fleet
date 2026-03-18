@@ -34,7 +34,7 @@ export interface MaintenanceRecord {
   vehicleId: string;
   totalValue?: number;
   requestId?: string;
-  status: 'pendente' | 'executada';
+  status: 'pendente' | 'executada' | 'cancelada';
 }
 
 export interface MaintenanceRequest {
@@ -45,7 +45,7 @@ export interface MaintenanceRequest {
   odometer: number;
   type: MaintenanceType;
   description: string;
-  status: 'pendente' | 'aprovada' | 'rejeitada' | 'concluida';
+  status: 'pendente' | 'aprovada' | 'rejeitada' | 'concluida' | 'cancelada';
   budgetValue?: number;
   documentUrl?: string;
   serviceRequestNumber?: string;

@@ -34,6 +34,8 @@ export default function DailyReport() {
   const [endTime, setEndTime] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
   const [loading, setLoading] = useState(false);
 
+  const isJourneyOpen = currentJourney?.status === 'aberta';
+
   useEffect(() => {
     const initPage = async () => {
       const userJson = localStorage.getItem('fleet_user');
@@ -111,6 +113,43 @@ export default function DailyReport() {
     };
     initPage();
   }, [navigate]);
+
+  useEffect(() => {
+    const fetchLastOdometer = async () => {
+      if (!selectedVehicle || isJourneyOpen) return;
+
+      try {
+        const { data: lastJ, error: ljErr } = await supabase
+          .from('journeys')
+          .select('end_odometer')
+          .eq('vehicle_id', selectedVehicle)
+          .eq('status', 'encerrada')
+          .order('end_time', { ascending: false })
+          .limit(1);
+
+        const selectedV = vehicles.find(v => v.id === selectedVehicle);
+        
+        if (ljErr) throw ljErr;
+
+        const lastJourneyOdo = lastJ?.[0]?.end_odometer || 0;
+        const vehicleOdo = selectedV?.vehicle_type === 'maquina' 
+          ? (selectedV?.current_hourmeter || 0) 
+          : (selectedV?.current_odometer || selectedV?.lastOdometer || 0);
+        
+        const suggestedOdo = Math.max(lastJourneyOdo, vehicleOdo);
+        
+        if (suggestedOdo > 0) {
+          setStartOdometer(suggestedOdo.toString());
+        } else {
+          setStartOdometer('');
+        }
+      } catch (err) {
+        console.error('Error fetching last odometer:', err);
+      }
+    };
+
+    fetchLastOdometer();
+  }, [selectedVehicle, isJourneyOpen, vehicles]);
 
   const handleLogout = () => {
     localStorage.removeItem('fleet_user');
@@ -420,7 +459,6 @@ export default function DailyReport() {
   if (!currentUser) return null;
 
   const vehicle = vehicles.find(v => v.id === selectedVehicle);
-  const isJourneyOpen = currentJourney?.status === 'aberta';
 
   return (
     <div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased min-h-screen flex flex-col items-center">
@@ -569,6 +607,11 @@ export default function DailyReport() {
           </section>
 
           <div className="pt-4 flex flex-col gap-4">
+            {!isJourneyOpen && (
+              <div className="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                <p className="text-xs text-slate-500 text-center font-medium">Preencha os dados acima para iniciar sua jornada</p>
+              </div>
+            )}
             <button 
               onClick={() => navigate('/refueling')}
               disabled={!isJourneyOpen}
@@ -608,12 +651,6 @@ export default function DailyReport() {
               <Wrench className={isJourneyOpen ? "text-primary" : "text-slate-400"} size={20} />
               <span>Solicitar Manutenção</span>
             </button>
-            
-            {!isJourneyOpen && (
-              <div className="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
-                <p className="text-xs text-slate-500 text-center font-medium">Preencha os dados acima para iniciar sua jornada</p>
-              </div>
-            )}
           </div>
         </main>
 

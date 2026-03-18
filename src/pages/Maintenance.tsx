@@ -65,6 +65,11 @@ export default function Maintenance() {
         };
         setActiveJourney(journey);
         
+        // Set default mileage to journey start odometer
+        if (journey.startOdometer) {
+          setMileage(journey.startOdometer.toString());
+        }
+
         // Set default date to journey start date
         if (journey.startTime) {
           setDate(journey.startTime.split('T')[0]);

@@ -17,6 +17,8 @@ export default function Vehicles() {
   // CRUD States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleteErrorModalOpen, setIsDeleteErrorModalOpen] = useState(false);
+  const [deleteErrorReasons, setDeleteErrorReasons] = useState<string[]>([]);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null);
@@ -235,8 +237,57 @@ export default function Vehicles() {
   const handleDeleteVehicle = async () => {
     if (!vehicleToDelete) return;
     setLoading(true);
+    setDeleteErrorReasons([]);
 
     try {
+      const reasons: string[] = [];
+
+      // Check Journeys
+      const { count: journeyCount, error: journeyError } = await supabase
+        .from('journeys')
+        .select('*', { count: 'exact', head: true })
+        .eq('vehicle_id', vehicleToDelete.id);
+      
+      if (journeyError) throw journeyError;
+      if (journeyCount && journeyCount > 0) {
+        reasons.push('Existem jornadas vinculadas a este veículo.');
+      }
+
+      // Check Maintenances (Executada/Pendente)
+      const { data: maintenances, error: maintenanceError } = await supabase
+        .from('maintenances')
+        .select('status')
+        .eq('vehicle_id', vehicleToDelete.id);
+      
+      if (maintenanceError) throw maintenanceError;
+      if (maintenances && maintenances.length > 0) {
+        const hasExecuted = maintenances.some(m => m.status === 'executada');
+        const hasPending = maintenances.some(m => m.status === 'pendente');
+        if (hasExecuted) reasons.push('Existem manutenções executadas vinculadas a este veículo.');
+        if (hasPending) reasons.push('Existem manutenções pendentes vinculadas a este veículo.');
+      }
+
+      // Check Maintenance Requests (Pendente/Aprovada)
+      const { data: requests, error: requestError } = await supabase
+        .from('maintenance_requests')
+        .select('status')
+        .eq('vehicle_id', vehicleToDelete.id);
+      
+      if (requestError) throw requestError;
+      if (requests && requests.length > 0) {
+        const hasPendingReq = requests.some(r => r.status === 'pendente');
+        const hasApprovedReq = requests.some(r => r.status === 'aprovada');
+        if (hasPendingReq) reasons.push('Existem solicitações de manutenção pendentes para este veículo.');
+        if (hasApprovedReq) reasons.push('Existem solicitações de manutenção autorizadas para este veículo.');
+      }
+
+      if (reasons.length > 0) {
+        setDeleteErrorReasons(reasons);
+        setIsDeleteErrorModalOpen(true);
+        setIsDeleteModalOpen(false);
+        return;
+      }
+
       const { error } = await supabase
         .from('vehicles')
         .delete()
@@ -771,6 +822,42 @@ export default function Vehicles() {
                       Excluir
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Delete Error Modal */}
+          {isDeleteErrorModalOpen && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="p-6 text-center">
+                  <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/20 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <AlertTriangle size={32} />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Não é possível excluir</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                    O veículo <span className="font-bold text-slate-700 dark:text-slate-200">{vehicleToDelete?.model} ({vehicleToDelete?.plate})</span> possui registros vinculados e não pode ser removido.
+                  </p>
+                  
+                  <div className="space-y-2 mb-6 text-left">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Motivos:</label>
+                    <select className="input-field bg-slate-50 dark:bg-slate-800/50 cursor-pointer">
+                      {deleteErrorReasons.map((reason, idx) => (
+                        <option key={idx}>{reason}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <button 
+                    onClick={() => {
+                      setIsDeleteErrorModalOpen(false);
+                      setVehicleToDelete(null);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-primary/20"
+                  >
+                    Entendido
+                  </button>
                 </div>
               </div>
             </div>
