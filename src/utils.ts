@@ -58,6 +58,7 @@ export const MOCK_USERS: User[] = [
     email: 'ricardo@fleet.com',
     password: 'fleet123',
     role: 'Admin',
+    cpf: '11111111111',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
     phone: '(11) 98765-4321'
   },
@@ -67,6 +68,7 @@ export const MOCK_USERS: User[] = [
     email: 'carlos@fleet.com',
     password: 'fleet123',
     role: 'Motorista',
+    cpf: '22222222222',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop',
     phone: '(11) 91234-5678'
   },
@@ -76,6 +78,7 @@ export const MOCK_USERS: User[] = [
     email: 'ana@fleet.com',
     password: 'fleet123',
     role: 'Admin',
+    cpf: '33333333333',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
     phone: '(11) 97777-8888'
   },
@@ -85,6 +88,7 @@ export const MOCK_USERS: User[] = [
     email: 'joao@fleet.com',
     password: 'fleet123',
     role: 'Motorista',
+    cpf: '44444444444',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
     phone: '(11) 96666-5555'
   },
@@ -94,6 +98,7 @@ export const MOCK_USERS: User[] = [
     email: 'maria@fleet.com',
     password: 'fleet123',
     role: 'Motorista',
+    cpf: '55555555555',
     avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
     phone: '(11) 95555-4444'
   }

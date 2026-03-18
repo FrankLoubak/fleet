@@ -62,6 +62,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  cpf: string;
   password?: string;
   role: 'Admin' | 'Motorista';
   avatar?: string;

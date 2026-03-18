@@ -9,7 +9,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [role, setRole] = useState<'Admin' | 'Motorista'>('Motorista');
-  const [email, setEmail] = useState('');
+  const [cpf, setCpf] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -23,14 +23,39 @@ export default function Login() {
     setLoading(true);
 
     try {
+      // Clean CPF (remove dots and dashes)
+      const cleanCpf = cpf.replace(/\D/g, '');
+      if (cleanCpf.length !== 11) {
+        throw new Error('CPF deve ter 11 dígitos.');
+      }
+
+      let loginEmail = `${cleanCpf}@fleetmanager.com`;
+
+      if (!isSignUp) {
+        // Para login, buscamos o e-mail associado ao CPF na tabela profiles
+        // Isso permite que usuários criados manualmente ou com e-mails reais consigam logar pelo CPF
+        const { data: profileLookup, error: lookupError } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('cpf', cleanCpf)
+          .single();
+        
+        if (profileLookup?.email) {
+          loginEmail = profileLookup.email;
+        } else if (lookupError && !isSignUp) {
+          console.warn('CPF não encontrado na tabela profiles, tentando e-mail padrão...');
+        }
+      }
+
       if (isSignUp) {
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email,
+          email: loginEmail,
           password,
           options: {
             data: {
               name,
               role,
+              cpf: cleanCpf,
             }
           }
         });
@@ -38,12 +63,12 @@ export default function Login() {
         if (signUpError) throw signUpError;
         
         if (signUpData.user) {
-          setSuccess('Conta criada com sucesso! Como a confirmação de e-mail está simplificada, você já pode entrar agora.');
+          setSuccess('Conta criada com sucesso! Você já pode entrar agora.');
           setIsSignUp(false);
         }
       } else {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-          email,
+          email: loginEmail,
           password,
         });
 
@@ -178,20 +203,26 @@ export default function Login() {
             )}
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1" htmlFor="email">
-                E-mail
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1" htmlFor="cpf">
+                CPF
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
-                  <Mail size={20} />
+                  <User size={20} />
                 </div>
                 <input
-                  id="email"
-                  type="email"
+                  id="cpf"
+                  type="text"
                   className="input-field pl-10"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="000.000.000-00"
+                  value={cpf}
+                  onChange={(e) => {
+                    // Simple mask for CPF
+                    let value = e.target.value.replace(/\D/g, '');
+                    if (value.length <= 11) {
+                      setCpf(value);
+                    }
+                  }}
                   required
                 />
               </div>
