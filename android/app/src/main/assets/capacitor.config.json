@@ -1,0 +1,9 @@
+{
+	"appId": "com.fleetmanager.app",
+	"appName": "fleetManager",
+	"webDir": "dist",
+	"server": {
+		"url": "https://frota-swart.vercel.app/login",
+		"cleartext": true
+	}
+}
