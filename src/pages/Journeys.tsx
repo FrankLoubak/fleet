@@ -21,7 +21,8 @@ import {
   ClipboardList,
   Info,
   Download,
-  Loader2
+  Loader2,
+  Menu
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { cn } from '../utils';
@@ -57,6 +58,7 @@ export default function Journeys() {
   const [modalStartDate, setModalStartDate] = useState('');
   const [modalEndDate, setModalEndDate] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isOdometerErrorModalOpen, setIsOdometerErrorModalOpen] = useState(false);
   const [lastOdometerValue, setLastOdometerValue] = useState(0);
 
@@ -530,11 +532,19 @@ export default function Journeys() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
-      <Sidebar />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       
       <main className="flex-1 flex flex-col overflow-auto">
-        <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-10 min-w-[1100px]">
-          <h2 className="text-lg font-bold dark:text-white">Gestão de Jornadas</h2>
+        <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-10">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="md:hidden p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+            >
+              <Menu size={20} />
+            </button>
+            <h2 className="text-base md:text-lg font-bold dark:text-white">Gestão de Jornadas</h2>
+          </div>
           <button 
             onClick={() => handleOpenModal()}
             className="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-primary/20 flex items-center gap-2"
@@ -544,7 +554,7 @@ export default function Journeys() {
           </button>
         </header>
 
-        <div className="p-8 space-y-6 min-w-[1100px]">
+        <div className="p-4 md:p-8 space-y-6">
           <div className="flex flex-col lg:flex-row gap-4 items-end justify-between">
             <div className="flex flex-col md:flex-row gap-4 w-full lg:w-auto flex-1">
               <div className="flex flex-col gap-1.5 flex-1 md:max-w-xs">

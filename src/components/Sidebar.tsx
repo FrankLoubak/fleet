@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Truck, Car, BarChart3, User, LogOut, Mail, Phone, Shield, ChevronDown, Play, Clock, Wrench } from 'lucide-react';
+import { Truck, Car, BarChart3, User, LogOut, Mail, Phone, Shield, ChevronDown, Play, Clock, Wrench, X } from 'lucide-react';
 import { cn } from '../utils';
 import { User as UserType } from '../types';
 
@@ -13,7 +13,7 @@ const navItems = [
   { icon: User, label: 'Perfil', path: '/profile' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
@@ -50,16 +50,23 @@ export default function Sidebar() {
 
   if (!currentUser) return null;
 
-  return (
-    <aside className="w-64 flex-shrink-0 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col hidden lg:flex">
-      <div className="p-6 flex items-center gap-3">
-        <div className="bg-primary rounded-lg p-2 flex items-center justify-center">
-          <Truck className="text-white w-6 h-6" />
+  const SidebarContent = (
+    <>
+      <div className="p-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="bg-primary rounded-lg p-2 flex items-center justify-center">
+            <Truck className="text-white w-6 h-6" />
+          </div>
+          <h1 className="text-xl font-bold tracking-tight dark:text-white">Gestor Frota</h1>
         </div>
-        <h1 className="text-xl font-bold tracking-tight dark:text-white">Gestor Frota</h1>
+        {onClose && (
+          <button onClick={onClose} className="md:hidden p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+            <X size={20} />
+          </button>
+        )}
       </div>
 
-      <nav className="flex-1 px-4 py-4 space-y-2">
+      <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
         {navItems.map((item) => {
           if (item.adminOnly && currentUser.role !== 'Admin') return null;
           
@@ -133,7 +140,10 @@ export default function Sidebar() {
 
                     <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
                       <button 
-                        onClick={() => navigate('/profile')}
+                        onClick={() => {
+                          navigate('/profile');
+                          if (onClose) onClose();
+                        }}
                         className="w-full py-2 text-xs font-bold text-primary hover:bg-primary/5 rounded-lg transition-colors"
                       >
                         Editar Perfil Completo
@@ -149,6 +159,9 @@ export default function Sidebar() {
             <Link
               key={item.path}
               to={item.path}
+              onClick={() => {
+                if (onClose) onClose();
+              }}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors",
                 isActive
@@ -184,6 +197,31 @@ export default function Sidebar() {
           </button>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile Sidebar Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Mobile Sidebar Drawer */}
+      <aside className={cn(
+        "fixed inset-y-0 left-0 w-64 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col z-50 transition-transform duration-300 md:hidden",
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        {SidebarContent}
+      </aside>
+
+      {/* Desktop Sidebar */}
+      <aside className="w-64 flex-shrink-0 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col hidden md:flex">
+        {SidebarContent}
+      </aside>
+    </>
   );
 }

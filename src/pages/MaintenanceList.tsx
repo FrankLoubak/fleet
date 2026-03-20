@@ -5,7 +5,7 @@ import {
   Wrench, ClipboardList, Loader2, Download, 
   ChevronRight, AlertCircle, Clock, CheckCircle2,
   Check, X, Pencil, Save, Upload, FileText, Link,
-  Plus, Trash2
+  Plus, Trash2, Menu
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { cn } from '../utils';
@@ -21,6 +21,7 @@ export default function MaintenanceList() {
   const [loading, setLoading] = useState(false);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState('all');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -469,77 +470,77 @@ export default function MaintenanceList() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
-      <Sidebar />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       
       <main className="flex-1 flex flex-col overflow-auto">
-        <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-10">
+        <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-10">
           <div className="flex items-center gap-4">
             <button 
-              onClick={() => navigate(-1)}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors lg:hidden"
+              onClick={() => setIsSidebarOpen(true)}
+              className="md:hidden p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
             >
-              <ArrowLeft size={24} />
+              <Menu size={20} />
             </button>
-            <h2 className="text-lg font-bold dark:text-white">Gestão de Manutenções</h2>
+            <h2 className="text-base md:text-lg font-bold dark:text-white">Gestão de Manutenções</h2>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <button
               onClick={() => setIsNewRequestModalOpen(true)}
-              className="px-4 py-2 bg-primary text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
+              className="p-2 md:px-4 md:py-2 bg-primary text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
             >
               <Plus size={18} />
-              Nova Solicitação
+              <span className="hidden md:inline">Nova Solicitação</span>
             </button>
-             <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+             <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl overflow-x-auto max-w-[150px] sm:max-w-none">
                 <button
                   onClick={() => setViewMode('executadas')}
                   className={cn(
-                    "px-4 py-1.5 text-xs font-bold rounded-lg transition-all",
+                    "px-2 md:px-4 py-1.5 text-[10px] md:text-xs font-bold rounded-lg transition-all whitespace-nowrap",
                     viewMode === 'executadas' 
                       ? "bg-white dark:bg-slate-700 text-primary shadow-sm" 
                       : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                   )}
                 >
-                  Visualizar Executadas
+                  Executadas
                 </button>
                 <button
                   onClick={() => setViewMode('autorizadas')}
                   className={cn(
-                    "px-4 py-1.5 text-xs font-bold rounded-lg transition-all",
+                    "px-2 md:px-4 py-1.5 text-[10px] md:text-xs font-bold rounded-lg transition-all whitespace-nowrap",
                     viewMode === 'autorizadas' 
                       ? "bg-white dark:bg-slate-700 text-primary shadow-sm" 
                       : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                   )}
                 >
-                  Visualizar Autorizadas
+                  Autorizadas
                 </button>
                 <button
                   onClick={() => setViewMode('pendentes')}
                   className={cn(
-                    "px-4 py-1.5 text-xs font-bold rounded-lg transition-all",
+                    "px-2 md:px-4 py-1.5 text-[10px] md:text-xs font-bold rounded-lg transition-all whitespace-nowrap",
                     viewMode === 'pendentes' 
                       ? "bg-white dark:bg-slate-700 text-primary shadow-sm" 
                       : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                   )}
                 >
-                  Visualizar Pendentes
+                  Pendentes
                 </button>
                 <button
                   onClick={() => setViewMode('canceladas')}
                   className={cn(
-                    "px-4 py-1.5 text-xs font-bold rounded-lg transition-all",
+                    "px-2 md:px-4 py-1.5 text-[10px] md:text-xs font-bold rounded-lg transition-all whitespace-nowrap",
                     viewMode === 'canceladas' 
                       ? "bg-white dark:bg-slate-700 text-primary shadow-sm" 
                       : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                   )}
                 >
-                  Visualizar Canceladas
+                  Canceladas
                 </button>
              </div>
           </div>
         </header>
 
-        <div className="p-8 space-y-6">
+        <div className="p-4 md:p-8 space-y-6">
           {/* Filters */}
           <div className="card p-6 flex flex-wrap items-end gap-6">
             <div className="flex-1 min-w-[200px] space-y-2">

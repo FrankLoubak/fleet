@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Truck, Search, Filter, ChevronRight, LayoutGrid, List as ListIcon, MoreVertical, Plus, X, Edit2, Trash2, AlertTriangle, History, Calendar, ArrowRight, Clock, MapPin, Droplets, Wrench as WrenchIcon, Info, Download, Loader2 } from 'lucide-react';
+import { Truck, Search, Filter, ChevronRight, LayoutGrid, List as ListIcon, MoreVertical, Plus, X, Edit2, Trash2, AlertTriangle, History, Calendar, ArrowRight, Clock, MapPin, Droplets, Wrench as WrenchIcon, Info, Download, Loader2, Menu } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { cn } from '../utils';
 import { User as UserType, Journey, Vehicle, RefuelingRecord, MaintenanceRecord } from '../types';
@@ -13,6 +13,7 @@ export default function Vehicles() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [vehicleData, setVehicleData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // CRUD States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -425,11 +426,19 @@ export default function Vehicles() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
-      <Sidebar />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       
       <main className="flex-1 flex flex-col overflow-auto">
-        <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-10 min-w-[1100px]">
-          <h2 className="text-lg font-bold dark:text-white">Frota de Veículos</h2>
+        <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 bg-white/50 dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-10">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="md:hidden p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+            >
+              <Menu size={20} />
+            </button>
+            <h2 className="text-base md:text-lg font-bold dark:text-white">Frota de Veículos</h2>
+          </div>
           <div className="flex items-center gap-4">
             <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
               <button 
@@ -461,7 +470,7 @@ export default function Vehicles() {
           </div>
         </header>
 
-        <div className="p-8 space-y-6 min-w-[1100px]">
+        <div className="p-4 md:p-8 space-y-6">
           {/* Search and Filters */}
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="relative w-full md:max-w-md">
