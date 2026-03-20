@@ -646,13 +646,14 @@ export default function Journeys() {
             </div>
           </div>
 
-          <div className="card overflow-hidden relative">
+          <div className="card relative">
             {loading && (
               <div className="absolute inset-0 z-10 bg-white/50 dark:bg-background-dark/50 backdrop-blur-[1px] flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-primary animate-spin" />
               </div>
             )}
-            <table className="w-full text-left">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left min-w-[1000px]">
               <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-500 uppercase font-semibold">
                 <tr>
                   <th className="px-6 py-4">Data/Hora</th>
@@ -759,8 +760,9 @@ export default function Journeys() {
             </table>
           </div>
         </div>
+      </div>
 
-        {/* Modal CRUD */}
+      {/* Modal CRUD */}
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">

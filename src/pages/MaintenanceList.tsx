@@ -635,7 +635,7 @@ export default function MaintenanceList() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="w-full text-left min-w-[1000px]">
                 <thead className="bg-slate-50 dark:bg-slate-800/50 text-[10px] text-slate-500 uppercase font-bold tracking-wider">
                   {viewMode !== 'pendentes' ? (
                     <tr>

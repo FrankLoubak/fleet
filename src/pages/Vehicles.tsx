@@ -495,8 +495,8 @@ export default function Vehicles() {
           </div>
 
           {viewMode === 'list' ? (
-            <div className="card overflow-hidden">
-              <table className="w-full text-left">
+            <div className="card overflow-x-auto">
+              <table className="w-full text-left min-w-[1000px]">
                 <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-500 uppercase font-semibold">
                   <tr>
                     <th className="px-6 py-4">Veículo</th>
