@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { 
   Fuel, Settings, TrendingUp, TrendingDown, Search, Bell, 
-  Download, Filter, ChevronRight, AlertCircle, X, Truck, Check, Loader2, Menu
+  Download, Filter, ChevronRight, AlertCircle, X, Truck, Check, Loader2, Menu, Clock
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { cn } from '../utils';
@@ -46,7 +46,8 @@ export default function Dashboard() {
     participationData: [] as any[],
     comparisonData: [] as any[],
     vehicleSpendingData: [] as any[],
-    recentActivities: [] as any[]
+    recentActivities: [] as any[],
+    maintenanceAlerts: [] as any[]
   });
 
   const loadData = async () => {
@@ -61,8 +62,13 @@ export default function Dashboard() {
         .from('maintenances')
         .select('*');
 
+      const { data: allRequests, error: reqError } = await supabase
+        .from('maintenance_requests')
+        .select('*');
+
       if (refError) throw refError;
       if (mainError) throw mainError;
+      if (reqError) throw reqError;
 
       // Normalize data (Supabase uses snake_case, existing code uses camelCase)
       const normalizedRefuelings = (allRefuelings || []).map(r => ({
@@ -77,6 +83,44 @@ export default function Dashboard() {
         vehicleId: m.vehicle_id,
         totalValue: m.total_value
       }));
+
+      const normalizedRequests = (allRequests || []).map(r => ({
+        ...r,
+        vehicleId: r.vehicle_id,
+        budgetValue: r.budget_value
+      }));
+
+      // Calculate Maintenance Alerts
+      const today = new Date().toISOString().split('T')[0];
+      const alerts = [];
+
+      // 1. Pending Requests
+      const pendingRequests = normalizedRequests.filter(r => r.status === 'pendente');
+      pendingRequests.forEach(r => {
+        alerts.push({
+          id: r.id,
+          type: 'request',
+          title: 'Solicitação Pendente',
+          vehicle: vehicles.find(v => v.id === r.vehicleId)?.plate || '---',
+          date: r.date,
+          description: r.description,
+          severity: 'info'
+        });
+      });
+
+      // 2. Authorized but not Executed Maintenances
+      const authorizedMaintenances = normalizedMaintenances.filter(m => m.status === 'pendente');
+      authorizedMaintenances.forEach(m => {
+        alerts.push({
+          id: m.id,
+          type: 'authorized',
+          title: 'Manutenção Autorizada',
+          vehicle: vehicles.find(v => v.id === m.vehicleId)?.plate || '---',
+          date: m.date,
+          description: m.description,
+          severity: 'warning'
+        });
+      });
 
       // Filter data by date and vehicle
       const filteredRefuelings = normalizedRefuelings.filter(r => {
@@ -294,7 +338,8 @@ export default function Dashboard() {
         participationData,
         comparisonData,
         vehicleSpendingData: vehicleSpending.slice(0, 5),
-        recentActivities
+        recentActivities,
+        maintenanceAlerts: alerts
       });
     } catch (err) {
       console.error('Error loading dashboard data:', err);
@@ -387,7 +432,11 @@ export default function Dashboard() {
             <div className="flex items-center gap-3">
               <button className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 relative">
                 <Bell size={20} />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-background-dark"></span>
+                {stats.maintenanceAlerts.length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-background-dark">
+                    {stats.maintenanceAlerts.length}
+                  </span>
+                )}
               </button>
               <button className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400">
                 <Settings size={20} />
@@ -756,6 +805,61 @@ export default function Dashboard() {
               </ResponsiveContainer>
             </div>
           </div>
+
+          {/* Maintenance Alerts */}
+          {stats.maintenanceAlerts.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-lg dark:text-white flex items-center gap-2">
+                  <AlertCircle className="text-orange-500" size={20} />
+                  Alertas de Manutenção
+                </h3>
+                <span className="bg-orange-100 text-orange-600 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider dark:bg-orange-900/30">
+                  {stats.maintenanceAlerts.length} {stats.maintenanceAlerts.length === 1 ? 'Alerta' : 'Alertas'}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {stats.maintenanceAlerts.map((alert) => (
+                  <div 
+                    key={alert.id}
+                    className={cn(
+                      "p-4 rounded-xl border flex gap-4 items-start transition-all hover:shadow-md",
+                      alert.severity === 'warning' 
+                        ? "bg-orange-50 border-orange-200 dark:bg-orange-900/10 dark:border-orange-900/30" 
+                        : "bg-blue-50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-900/30"
+                    )}
+                  >
+                    <div className={cn(
+                      "p-2 rounded-lg shrink-0",
+                      alert.severity === 'warning' ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30" : "bg-blue-100 text-blue-600 dark:bg-blue-900/30"
+                    )}>
+                      {alert.type === 'authorized' ? <Clock size={20} /> : <AlertCircle size={20} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className="font-bold text-sm dark:text-white truncate">{alert.title}</h4>
+                        <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider shrink-0 ml-2">
+                          {new Date(alert.date).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mb-2 font-medium">
+                        Veículo: <span className="text-slate-900 dark:text-slate-200">{alert.vehicle}</span>
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-500 line-clamp-2 italic">
+                        "{alert.description}"
+                      </p>
+                      <button 
+                        onClick={() => navigate('/maintenance-list')}
+                        className="mt-3 text-[11px] font-bold text-primary hover:underline flex items-center gap-1"
+                      >
+                        Ver detalhes <ChevronRight size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Table */}
           <div className="card overflow-hidden">

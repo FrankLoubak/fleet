@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Clock, Zap, Fuel, Wrench, Play, ClipboardList, Truck, Power, User, LogOut, CheckCircle2, X, BarChart3, History, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Zap, Fuel, Wrench, Play, ClipboardList, Truck, Power, User, LogOut, CheckCircle2, X, BarChart3, History, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '../utils';
 import { User as UserType, Journey, Vehicle } from '../types';
 import { supabase } from '../lib/supabase';
@@ -33,6 +33,7 @@ export default function DailyReport() {
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [endTime, setEndTime] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
   const [loading, setLoading] = useState(false);
+  const [maintenanceAlerts, setMaintenanceAlerts] = useState<any[]>([]);
 
   const isJourneyOpen = currentJourney?.status === 'aberta';
 
@@ -456,6 +457,67 @@ export default function DailyReport() {
     }
   };
 
+  useEffect(() => {
+    const fetchMaintenanceAlerts = async () => {
+      if (!isJourneyOpen || !selectedVehicle) {
+        setMaintenanceAlerts([]);
+        return;
+      }
+
+      try {
+        // 1. Fetch Pending Requests
+        const { data: requests, error: reqError } = await supabase
+          .from('maintenance_requests')
+          .select('*')
+          .eq('vehicle_id', selectedVehicle)
+          .eq('status', 'pendente');
+
+        if (reqError) throw reqError;
+
+        // 2. Fetch Authorized but not Executed Maintenances
+        const { data: maintenances, error: mainError } = await supabase
+          .from('maintenances')
+          .select('*')
+          .eq('vehicle_id', selectedVehicle)
+          .eq('status', 'pendente');
+
+        if (mainError) throw mainError;
+
+        const alerts = [];
+
+        // Pending Requests -> Info (Blue)
+        (requests || []).forEach(r => {
+          alerts.push({
+            id: r.id,
+            type: 'request',
+            title: 'Solicitação de Manutenção Pendente',
+            description: r.description,
+            date: r.date,
+            severity: 'info'
+          });
+        });
+
+        // Authorized but not Executed -> Warning (Orange)
+        (maintenances || []).forEach(m => {
+          alerts.push({
+            id: m.id,
+            type: 'authorized',
+            title: 'Manutenção Autorizada (Não Executada)',
+            description: m.description,
+            date: m.date,
+            severity: 'warning'
+          });
+        });
+
+        setMaintenanceAlerts(alerts);
+      } catch (err) {
+        console.error('Error fetching maintenance alerts for journey:', err);
+      }
+    };
+
+    fetchMaintenanceAlerts();
+  }, [isJourneyOpen, selectedVehicle]);
+
   if (!currentUser) return null;
 
   const vehicle = vehicles.find(v => v.id === selectedVehicle);
@@ -493,6 +555,45 @@ export default function DailyReport() {
                 <p className="text-sm font-bold text-green-600 dark:text-green-400">Jornada Aberta</p>
                 <p className="text-xs text-green-600/80 dark:text-green-400/80">ID: {currentJourney.id}</p>
               </div>
+            </div>
+          )}
+
+          {/* Maintenance Alerts for the Vehicle */}
+          {isJourneyOpen && maintenanceAlerts.length > 0 && (
+            <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+              <div className="flex items-center gap-2 px-1">
+                <Wrench size={16} className="text-orange-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Alertas de Manutenção</h3>
+              </div>
+              {maintenanceAlerts.map((alert) => (
+                <div 
+                  key={alert.id}
+                  className={cn(
+                    "p-4 rounded-xl border flex gap-3 items-start shadow-sm",
+                    alert.severity === 'warning' 
+                      ? "bg-orange-50 border-orange-200 dark:bg-orange-900/10 dark:border-orange-900/30" 
+                      : "bg-blue-50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-900/30"
+                  )}
+                >
+                  <div className={cn(
+                    "p-2 rounded-lg shrink-0",
+                    alert.severity === 'warning' ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30" : "bg-blue-100 text-blue-600 dark:bg-blue-900/30"
+                  )}>
+                    <AlertCircle size={18} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <h4 className="font-bold text-xs dark:text-white truncate">{alert.title}</h4>
+                      <span className="text-[9px] font-medium text-slate-500 uppercase shrink-0 ml-2">
+                        {new Date(alert.date).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 italic">
+                      "{alert.description}"
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 

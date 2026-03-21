@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Truck, Car, BarChart3, User, LogOut, Mail, Phone, Shield, ChevronDown, Play, Clock, Wrench, X } from 'lucide-react';
+import { Truck, Car, BarChart3, User, LogOut, Mail, Phone, Shield, ChevronDown, Play, Clock, Wrench, X, AlertCircle } from 'lucide-react';
 import { cn } from '../utils';
 import { User as UserType } from '../types';
+import { supabase } from '../lib/supabase';
 
 const navItems = [
   { icon: Play, label: 'Início', path: '/daily-report' },
@@ -18,13 +19,41 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [alertCount, setAlertCount] = useState(0);
 
   useEffect(() => {
     const userJson = localStorage.getItem('fleet_user');
     if (userJson) {
-      setCurrentUser(JSON.parse(userJson));
+      const user = JSON.parse(userJson);
+      setCurrentUser(user);
     }
   }, []);
+
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      if (!currentUser || currentUser.role !== 'Admin') return;
+      
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        
+        const { count: pendingReqCount } = await supabase
+          .from('maintenance_requests')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'pendente');
+          
+        const { count: overdueMainCount } = await supabase
+          .from('maintenances')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'pendente');
+          
+        setAlertCount((pendingReqCount || 0) + (overdueMainCount || 0));
+      } catch (err) {
+        console.error('Error fetching alerts for sidebar:', err);
+      }
+    };
+    
+    fetchAlerts();
+  }, [currentUser]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -136,6 +165,18 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                           <p className="text-slate-600 dark:text-slate-300">{currentUser.role === 'Admin' ? 'Administrador' : 'Motorista'}</p>
                         </div>
                       </div>
+
+                      {alertCount > 0 && (
+                        <div className="flex items-center gap-3 text-sm p-2 bg-orange-50 dark:bg-orange-900/10 rounded-lg border border-orange-100 dark:border-orange-900/20">
+                          <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600">
+                            <AlertCircle size={14} />
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-orange-500 uppercase font-bold">Alertas Ativos</p>
+                            <p className="text-orange-700 dark:text-orange-400 font-bold">{alertCount} pendências</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
@@ -163,14 +204,24 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                 if (onClose) onClose();
               }}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors",
+                "flex items-center justify-between px-3 py-2.5 rounded-lg font-medium transition-colors",
                 isActive
                   ? "bg-primary text-white"
                   : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
               )}
             >
-              <item.icon size={20} />
-              <span>{item.label}</span>
+              <div className="flex items-center gap-3">
+                <item.icon size={20} />
+                <span>{item.label}</span>
+              </div>
+              {item.label === 'Manutenções' && alertCount > 0 && (
+                <span className={cn(
+                  "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
+                  isActive ? "bg-white text-primary" : "bg-red-500 text-white"
+                )}>
+                  {alertCount}
+                </span>
+              )}
             </Link>
           );
         })}

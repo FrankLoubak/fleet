@@ -281,25 +281,6 @@ export default function Login() {
                 isSignUp ? 'Criar Conta' : 'Entrar'
               )}
             </button>
-
-            {!isSignUp && (
-              <button 
-                type="button"
-                onClick={() => {
-                  const mockUser = {
-                    id: '00000000-0000-0000-0000-000000000001',
-                    name: 'Admin Temporário',
-                    email: 'admin@teste.com',
-                    role: 'Admin'
-                  };
-                  localStorage.setItem('fleet_user', JSON.stringify(mockUser));
-                  window.location.href = '/dashboard';
-                }}
-                className="w-full py-2 text-xs font-medium text-slate-400 hover:text-primary transition-colors border border-dashed border-slate-200 dark:border-slate-800 rounded-lg"
-              >
-                Acesso de Emergência (Pular Login para Teste)
-              </button>
-            )}
           </form>
 
           <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 text-center">
@@ -318,13 +299,6 @@ export default function Login() {
         </div>
 
         <div className="text-center space-y-4">
-          <div className="p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-left">
-            <p className="text-xs font-bold text-slate-500 uppercase mb-2">Aviso de Migração</p>
-            <p className="text-[10px] text-slate-600 dark:text-slate-400 leading-relaxed">
-              O sistema agora utiliza autenticação real via Supabase. As credenciais de teste anteriores não funcionam automaticamente. 
-              Por favor, utilize a opção <strong>"Criar uma agora"</strong> acima para registrar seu usuário.
-            </p>
-          </div>
           <p className="text-xs text-slate-500 dark:text-slate-600">
             © 2024 FleetManager. Todos os direitos reservados.
           </p>
