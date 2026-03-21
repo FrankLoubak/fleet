@@ -415,9 +415,6 @@ export default function Dashboard() {
             </button>
             <div className="flex flex-col">
               <h2 className="text-base md:text-lg font-bold dark:text-white">Dashboard de Frota</h2>
-              <span className="text-[10px] text-blue-500 font-mono select-all cursor-help" title="Seu ID de Usuário para o script SQL">
-                ID: {currentUser?.id}
-              </span>
             </div>
           </div>
           <div className="flex items-center gap-6">
