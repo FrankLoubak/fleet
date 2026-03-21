@@ -136,8 +136,10 @@ export default function Vehicles() {
         // Find the latest closed journey for this vehicle
         const lastJourney = allJourneys?.find(j => j.vehicle_id === vehicle.id);
         
-        // Use the latest odometer from journeys if available, otherwise use the one from the vehicle table
-        const currentKm = lastJourney?.end_odometer || vehicle.current_odometer || vehicle.last_odometer || 0;
+        // Use the latest odometer/hourmeter from journeys if available, otherwise use the one from the vehicle table
+        const currentKm = vehicle.vehicle_type === 'maquina' 
+          ? (lastJourney?.end_odometer || vehicle.current_hourmeter || vehicle.last_odometer || 0)
+          : (lastJourney?.end_odometer || vehicle.current_odometer || vehicle.last_odometer || 0);
 
         return {
           ...vehicle,
@@ -955,13 +957,15 @@ export default function Vehicles() {
 
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-1">
-                            <p className="text-[10px] text-slate-400 uppercase font-bold">Quilometragem</p>
+                            <p className="text-[10px] text-slate-400 uppercase font-bold">
+                              {selectedVehicleForHistory?.vehicle_type === 'maquina' ? 'Horímetro' : 'Quilometragem'}
+                            </p>
                             <div className="flex items-center gap-2 text-sm font-bold dark:text-white">
                               <span>{journey.startOdometer.toLocaleString()}</span>
                               <ArrowRight size={14} className="text-slate-300" />
                               <span>{journey.endOdometer ? journey.endOdometer.toLocaleString() : '---'}</span>
                               <span className="text-xs font-medium text-slate-400 ml-1">
-                                {journey.endOdometer ? `(${journey.endOdometer - journey.startOdometer} km)` : ''}
+                                {journey.endOdometer ? `(${journey.endOdometer - journey.startOdometer} ${selectedVehicleForHistory?.vehicle_type === 'maquina' ? 'h' : 'km'})` : ''}
                               </span>
                             </div>
                           </div>
@@ -1069,7 +1073,9 @@ export default function Vehicles() {
                           <div>
                             <p className="text-sm font-bold dark:text-white">{r.fuelType}</p>
                             <div className="flex items-center gap-2">
-                              <p className="text-xs text-slate-500">{r.odometer.toLocaleString()} KM</p>
+                              <p className="text-xs text-slate-500">
+                                {r.odometer.toLocaleString()} {selectedVehicleForDetails.vehicle_type === 'maquina' ? 'h' : 'KM'}
+                              </p>
                               {r.location && (
                                 <>
                                   <span className="text-slate-300 dark:text-slate-700">•</span>
@@ -1185,7 +1191,9 @@ export default function Vehicles() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-bold text-slate-900 dark:text-white">{m.mileage.toLocaleString()} KM</p>
+                            <p className="text-sm font-bold text-slate-900 dark:text-white">
+                              {m.mileage.toLocaleString()} {selectedVehicleForDetails.vehicle_type === 'maquina' ? 'h' : 'KM'}
+                            </p>
                           </div>
                         </div>
                         <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 flex gap-2">

@@ -286,12 +286,21 @@ export default function Refueling() {
 
       // Update vehicle last_odometer if this is the newest
       const odoNum = Number(odometer);
-      if (odoNum > (vehicle?.lastOdometer || 0)) {
+      const currentVal = vehicle?.vehicle_type === 'maquina' ? (vehicle.current_hourmeter || 0) : (vehicle?.current_odometer || vehicle?.lastOdometer || 0);
+      
+      if (odoNum > currentVal) {
+        const updatePayload: any = { last_odometer: odoNum };
+        if (vehicle?.vehicle_type === 'maquina') {
+          updatePayload.current_hourmeter = odoNum;
+        } else {
+          updatePayload.current_odometer = odoNum;
+        }
+
         const { error: vError } = await supabase
           .from('vehicles')
-          .update({ last_odometer: odoNum })
+          .update(updatePayload)
           .eq('id', activeJourney?.vehicleId);
-        if (vError) console.error('Error updating vehicle odometer:', vError);
+        if (vError) console.error('Error updating vehicle odometer/hourmeter:', vError);
       }
 
       setIsConfirmModalOpen(false);
@@ -365,7 +374,9 @@ export default function Refueling() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Último KM Registrado</label>
+            <label className="text-sm font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+              Último {vehicle?.vehicle_type === 'maquina' ? 'Horímetro' : 'KM'} Registrado
+            </label>
             <div className="relative opacity-70">
               <History className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
               <input
@@ -378,13 +389,15 @@ export default function Refueling() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Odômetro Atual (KM)</label>
+            <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">
+              {vehicle?.vehicle_type === 'maquina' ? 'Horímetro Atual' : 'Odômetro Atual (KM)'}
+            </label>
             <div className="relative">
               <Zap className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
               <input
                 ref={odometerInputRef}
                 className="input-field pl-12"
-                placeholder="Ex: 45280"
+                placeholder={vehicle?.vehicle_type === 'maquina' ? "Ex: 500" : "Ex: 45280"}
                 type="number"
                 value={odometer}
                 onChange={(e) => setOdometer(e.target.value)}

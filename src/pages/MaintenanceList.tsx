@@ -395,6 +395,26 @@ export default function MaintenanceList() {
       
       if (error) throw error;
 
+      // Update vehicle odometer/hourmeter if this is the newest
+      const vehicle = vehicles.find(v => v.id === m.vehicleId);
+      const odoNum = Number(m.mileage);
+      const currentVal = vehicle?.vehicle_type === 'maquina' ? (vehicle.current_hourmeter || 0) : (vehicle?.current_odometer || vehicle?.last_odometer || 0);
+      
+      if (odoNum > currentVal) {
+        const updatePayload: any = { last_odometer: odoNum };
+        if (vehicle?.vehicle_type === 'maquina') {
+          updatePayload.current_hourmeter = odoNum;
+        } else {
+          updatePayload.current_odometer = odoNum;
+        }
+
+        const { error: vError } = await supabase
+          .from('vehicles')
+          .update(updatePayload)
+          .eq('id', m.vehicleId);
+        if (vError) console.error('Error updating vehicle odometer/hourmeter:', vError);
+      }
+
       // Also mark request as concluida if exists
       if (m.requestId) {
         await supabase
@@ -641,7 +661,7 @@ export default function MaintenanceList() {
                     <tr>
                       <th className="px-6 py-4">Veículo</th>
                       <th className="px-6 py-4">Data</th>
-                      <th className="px-6 py-4">KM</th>
+                      <th className="px-6 py-4">KM / Horímetro</th>
                       <th className="px-6 py-4">Tipo</th>
                       <th className="px-6 py-4">Status</th>
                       <th className="px-6 py-4">Prestador</th>
@@ -653,7 +673,7 @@ export default function MaintenanceList() {
                     <tr>
                       <th className="px-6 py-4">Veículo</th>
                       <th className="px-6 py-4">Data</th>
-                      <th className="px-6 py-4">KM (Odo)</th>
+                      <th className="px-6 py-4">KM / Horímetro</th>
                       <th className="px-6 py-4">Tipo</th>
                       <th className="px-6 py-4">Descrição</th>
                       <th className="px-6 py-4">Orçamento</th>
@@ -673,7 +693,9 @@ export default function MaintenanceList() {
                             <span className="text-sm dark:text-slate-300">{new Date(m.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
                           </td>
                           <td className="px-6 py-4">
-                            <span className="text-sm dark:text-slate-300">{m.mileage.toLocaleString()} KM</span>
+                            <span className="text-sm dark:text-slate-300">
+                              {m.mileage.toLocaleString()} {vehicles.find(v => v.id === m.vehicleId)?.vehicle_type === 'maquina' ? '' : 'KM'}
+                            </span>
                           </td>
                           <td className="px-6 py-4">
                             <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 text-[10px] font-bold rounded-md uppercase">
@@ -750,7 +772,9 @@ export default function MaintenanceList() {
                             <span className="text-sm dark:text-slate-300">{new Date(r.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
                           </td>
                           <td className="px-6 py-4">
-                            <span className="text-sm dark:text-slate-300">{r.odometer.toLocaleString()} KM</span>
+                            <span className="text-sm dark:text-slate-300">
+                              {r.odometer.toLocaleString()} {vehicles.find(v => v.id === r.vehicleId)?.vehicle_type === 'maquina' ? '' : 'KM'}
+                            </span>
                           </td>
                           <td className="px-6 py-4">
                             <span className="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-600 text-[10px] font-bold rounded-md uppercase">

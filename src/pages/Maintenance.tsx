@@ -218,12 +218,22 @@ export default function Maintenance() {
       if (error) throw error;
 
       // Update vehicle last_odometer if this is the newest
-      if (odoNum > (vehicle?.lastOdometer || 0)) {
+      const odoNum = Number(mileage);
+      const currentVal = vehicle?.vehicle_type === 'maquina' ? (vehicle.current_hourmeter || 0) : (vehicle?.current_odometer || vehicle?.lastOdometer || 0);
+      
+      if (odoNum > currentVal) {
+        const updatePayload: any = { last_odometer: odoNum };
+        if (vehicle?.vehicle_type === 'maquina') {
+          updatePayload.current_hourmeter = odoNum;
+        } else {
+          updatePayload.current_odometer = odoNum;
+        }
+
         const { error: vError } = await supabase
           .from('vehicles')
-          .update({ last_odometer: odoNum })
+          .update(updatePayload)
           .eq('id', activeJourney?.vehicleId);
-        if (vError) console.error('Error updating vehicle odometer:', vError);
+        if (vError) console.error('Error updating vehicle odometer/hourmeter:', vError);
       }
 
       setIsSuccessModalOpen(true);
@@ -322,12 +332,14 @@ export default function Maintenance() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Quilometragem (KM)</label>
+              <label className="text-sm font-medium">
+                {vehicle?.vehicle_type === 'maquina' ? 'Horímetro' : 'Quilometragem (KM)'}
+              </label>
               <div className="relative flex items-center">
                 <Zap className="absolute left-4 text-slate-400 w-5 h-5" />
                 <input
                   className="input-field pl-12"
-                  placeholder="Ex: 125430"
+                  placeholder={vehicle?.vehicle_type === 'maquina' ? "Ex: 500" : "Ex: 125430"}
                   type="number"
                   value={mileage}
                   onChange={(e) => setMileage(e.target.value)}

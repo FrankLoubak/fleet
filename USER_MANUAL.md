@@ -33,20 +33,22 @@ Na tela de **Frota**, você pode:
 ## 4. Operação Diária (Motorista)
 
 ### Iniciar Jornada (Parte Diária)
-1. Selecione o veículo que irá utilizar.
+1. Selecione o veículo ou máquina que irá utilizar.
 2. Confira a data e o horário.
-3. Insira o **Odômetro Inicial** (ou Horímetro, para máquinas). O sistema validará se o valor é condizente com o último registro.
+3. Insira o **Odômetro Inicial** (para veículos) ou **Horímetro Inicial** (para máquinas). O sistema validará se o valor é maior ou igual ao último registro conhecido na base de dados.
 4. Clique em **Iniciar Jornada**.
 
 ### Durante a Jornada
 Com a jornada aberta, você terá acesso aos botões:
-- **Incluir Abastecimento:** Registre litros, tipo de combustível e odômetro no momento do posto.
+- **Incluir Abastecimento:** Registre litros, tipo de combustível e odômetro/horímetro no momento do abastecimento.
 - **Solicitar Manutenção:** Se identificar um problema, envie uma solicitação descrevendo o defeito.
+- **Incluir Manutenção:** Registre manutenções realizadas diretamente (se aplicável).
 
 ### Encerrar Jornada
 1. Clique em **Encerrar Jornada**.
-2. Insira o **Odômetro Final**.
-3. O sistema verificará se o valor final é maior que o inicial e se é compatível com abastecimentos realizados no trajeto.
+2. Insira o **Odômetro/Horímetro Final**.
+3. O sistema verificará se o valor final é estritamente maior que o inicial e se é compatível com abastecimentos e manutenções realizados durante a jornada.
+4. Ao encerrar, o odômetro/horímetro do veículo será atualizado automaticamente para o valor final informado.
 
 ---
 
