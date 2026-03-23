@@ -764,18 +764,21 @@ export default function Journeys() {
 
       {/* Modal CRUD */}
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
-                <h3 className="font-bold text-slate-900 dark:text-white">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                   {editingJourney ? 'Editar Jornada' : 'Nova Jornada'}
                 </h3>
-                <button onClick={() => setIsModalOpen(false)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500">
+                <button 
+                  onClick={() => setIsModalOpen(false)}
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                >
                   <X size={20} />
                 </button>
               </div>
               
-              <form onSubmit={handleSaveJourney} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              <form onSubmit={handleSaveJourney} className="flex-1 overflow-y-auto p-6 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 uppercase ml-1">Motorista</label>
@@ -979,111 +982,113 @@ export default function Journeys() {
 
         {/* Fueling Details Modal */}
         {isFuelingModalOpen && selectedVehicleForDetails && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-amber-50 dark:bg-amber-900/10">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-lg">
-                    <Droplets size={20} />
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-amber-50 dark:bg-amber-900/10">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-lg">
+                      <Droplets size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 dark:text-white">Abastecimentos</h3>
+                      <p className="text-[10px] text-amber-600 font-bold uppercase tracking-wider">
+                        {selectedVehicleForDetails.plate} - {selectedVehicleForDetails.model}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-slate-900 dark:text-white">Abastecimentos</h3>
-                    <p className="text-[10px] text-amber-600 font-bold uppercase tracking-wider">
-                      {selectedVehicleForDetails.plate} - {selectedVehicleForDetails.model}
-                    </p>
-                  </div>
+                  <button onClick={() => setIsFuelingModalOpen(false)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500">
+                    <X size={20} />
+                  </button>
                 </div>
-                <button onClick={() => setIsFuelingModalOpen(false)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500">
-                  <X size={20} />
-                </button>
-              </div>
 
-              <div className="p-4 bg-amber-50/50 dark:bg-amber-900/5 border-b border-slate-200 dark:border-slate-800">
-                <div className="flex flex-col md:flex-row gap-4 items-end">
-                  <div className="flex-1 space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Início</label>
-                    <input 
-                      type="date" 
-                      className="input-field h-10 text-sm" 
-                      value={modalStartDate}
-                      onChange={(e) => setModalStartDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex-1 space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fim</label>
-                    <input 
-                      type="date" 
-                      className="input-field h-10 text-sm" 
-                      value={modalEndDate}
-                      onChange={(e) => setModalEndDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="bg-white dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-500">
-                    {vehicleFuelings.length} Registros
+                <div className="p-4 bg-amber-50/50 dark:bg-amber-900/5 border-b border-slate-200 dark:border-slate-800">
+                  <div className="flex flex-col md:flex-row gap-4 items-end">
+                    <div className="flex-1 space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Início</label>
+                      <input 
+                        type="date" 
+                        className="input-field h-10 text-sm" 
+                        value={modalStartDate}
+                        onChange={(e) => setModalStartDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex-1 space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fim</label>
+                      <input 
+                        type="date" 
+                        className="input-field h-10 text-sm" 
+                        value={modalEndDate}
+                        onChange={(e) => setModalEndDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="bg-white dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-500">
+                      {vehicleFuelings.length} Registros
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              <div className="p-6 max-h-[60vh] overflow-y-auto">
-                {vehicleFuelings.length > 0 ? (
-                  <div className="space-y-3">
-                    {vehicleFuelings.map((r) => (
-                      <div key={r.id} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="text-center min-w-[60px]">
-                            <p className="text-xs font-bold text-slate-400 uppercase">{new Date(r.date).toLocaleDateString('pt-BR', { month: 'short' })}</p>
-                            <p className="text-xl font-black text-slate-900 dark:text-white leading-none">{new Date(r.date).getDate()}</p>
-                          </div>
-                          <div className="h-8 w-px bg-slate-200 dark:bg-slate-700"></div>
-                          <div>
-                            <p className="text-sm font-bold dark:text-white">{r.fuelType}</p>
-                            <div className="flex items-center gap-2">
-                              <p className="text-xs text-slate-500">{r.odometer.toLocaleString()} KM</p>
-                              {r.location && (
-                                <>
-                                  <span className="text-slate-300 dark:text-slate-700">•</span>
-                                  <p className="text-[10px] font-bold text-amber-600 uppercase">{r.location}</p>
-                                </>
-                              )}
+                
+                <div className="flex-1 overflow-y-auto p-6">
+                  {vehicleFuelings.length > 0 ? (
+                    <div className="space-y-3">
+                      {vehicleFuelings.map((r) => (
+                        <div key={r.id} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="text-center min-w-[60px]">
+                              <p className="text-xs font-bold text-slate-400 uppercase">{new Date(r.date).toLocaleDateString('pt-BR', { month: 'short' })}</p>
+                              <p className="text-xl font-black text-slate-900 dark:text-white leading-none">{new Date(r.date).getDate()}</p>
+                            </div>
+                            <div className="h-8 w-px bg-slate-200 dark:bg-slate-700"></div>
+                            <div>
+                              <p className="text-sm font-bold dark:text-white">{r.fuelType}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs text-slate-500">{r.odometer.toLocaleString()} KM</p>
+                                {r.location && (
+                                  <>
+                                    <span className="text-slate-300 dark:text-slate-700">•</span>
+                                    <p className="text-[10px] font-bold text-amber-600 uppercase">{r.location}</p>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
+                          <div className="text-right">
+                            <p className="text-lg font-black text-primary leading-none">{r.quantity}L</p>
+                            {(r as any).averageConsumption > 0 && (
+                              <p className="text-[10px] font-bold text-green-600 uppercase mt-1">
+                                {(r as any).averageConsumption.toFixed(1).replace('.', ',')} km/L
+                              </p>
+                            )}
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Quantidade</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-lg font-black text-primary leading-none">{r.quantity}L</p>
-                          {(r as any).averageConsumption > 0 && (
-                            <p className="text-[10px] font-bold text-green-600 uppercase mt-1">
-                              {(r as any).averageConsumption.toFixed(1).replace('.', ',')} km/L
-                            </p>
-                          )}
-                          <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Quantidade</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <Droplets size={24} />
+                      ))}
                     </div>
-                    <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhum abastecimento encontrado no período.</p>
-                  </div>
-                )}
-              </div>
-              
-              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex justify-start gap-3">
-                <button 
-                  onClick={() => setIsFuelingModalOpen(false)} 
-                  className="px-6 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                >
-                  Fechar
-                </button>
-                <button 
-                  onClick={exportFuelingsToCSV}
-                  className="px-6 py-2 bg-amber-600 text-white rounded-xl text-sm font-bold hover:bg-amber-700 transition-all flex items-center gap-2 shadow-lg shadow-amber-600/20"
-                >
-                  <Download size={18} />
-                  Exportar CSV
-                </button>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Droplets size={24} />
+                      </div>
+                      <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhum abastecimento encontrado no período.</p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex justify-start gap-3">
+                  <button 
+                    onClick={() => setIsFuelingModalOpen(false)} 
+                    className="px-6 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  >
+                    Fechar
+                  </button>
+                  <button 
+                    onClick={exportFuelingsToCSV}
+                    className="px-6 py-2 bg-amber-600 text-white rounded-xl text-sm font-bold hover:bg-amber-700 transition-all flex items-center gap-2 shadow-lg shadow-amber-600/20"
+                  >
+                    <Download size={18} />
+                    Exportar CSV
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1091,105 +1096,107 @@ export default function Journeys() {
 
         {/* Maintenance Details Modal */}
         {isMaintenanceModalOpen && selectedVehicleForDetails && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-purple-50 dark:bg-purple-900/10">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-lg">
-                    <WrenchIcon size={20} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-900 dark:text-white">Manutenções</h3>
-                    <p className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">
-                      {selectedVehicleForDetails.plate} - {selectedVehicleForDetails.model}
-                    </p>
-                  </div>
-                </div>
-                <button onClick={() => setIsMaintenanceModalOpen(false)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500">
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="p-4 bg-purple-50/50 dark:bg-purple-900/5 border-b border-slate-200 dark:border-slate-800">
-                <div className="flex flex-col md:flex-row gap-4 items-end">
-                  <div className="flex-1 space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Início</label>
-                    <input 
-                      type="date" 
-                      className="input-field h-10 text-sm" 
-                      value={modalStartDate}
-                      onChange={(e) => setModalStartDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex-1 space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fim</label>
-                    <input 
-                      type="date" 
-                      className="input-field h-10 text-sm" 
-                      value={modalEndDate}
-                      onChange={(e) => setModalEndDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="bg-white dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-500">
-                    {vehicleMaintenances.length} Registros
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-6 max-h-[60vh] overflow-y-auto">
-                {vehicleMaintenances.length > 0 ? (
-                  <div className="space-y-4">
-                    {vehicleMaintenances.map((m) => (
-                      <div key={m.id} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="text-center min-w-[50px]">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">{new Date(m.date).toLocaleDateString('pt-BR', { month: 'short' })}</p>
-                              <p className="text-lg font-black text-slate-900 dark:text-white">{new Date(m.date).getDate()}</p>
-                            </div>
-                            <div className="h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
-                            <div>
-                              <p className="text-sm font-bold dark:text-white">{m.type}</p>
-                              <p className="text-[10px] font-bold text-purple-600 uppercase">{m.provider}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-bold text-slate-900 dark:text-white">{m.mileage.toLocaleString()} KM</p>
-                          </div>
-                        </div>
-                        <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 flex gap-2">
-                          <Info size={14} className="text-slate-400 shrink-0 mt-0.5" />
-                          <p className="text-xs text-slate-600 dark:text-slate-400 italic leading-relaxed">
-                            {m.description}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <WrenchIcon size={24} />
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-purple-50 dark:bg-purple-900/10">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-lg">
+                      <WrenchIcon size={20} />
                     </div>
-                    <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhuma manutenção encontrada no período.</p>
+                    <div>
+                      <h3 className="font-bold text-slate-900 dark:text-white">Manutenções</h3>
+                      <p className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">
+                        {selectedVehicleForDetails.plate} - {selectedVehicleForDetails.model}
+                      </p>
+                    </div>
                   </div>
-                )}
-              </div>
-              
-              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex justify-start gap-3">
-                <button 
-                  onClick={() => setIsMaintenanceModalOpen(false)} 
-                  className="px-6 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                >
-                  Fechar
-                </button>
-                <button 
-                  onClick={exportMaintenancesToCSV}
-                  className="px-6 py-2 bg-purple-600 text-white rounded-xl text-sm font-bold hover:bg-purple-700 transition-all flex items-center gap-2 shadow-lg shadow-purple-600/20"
-                >
-                  <Download size={18} />
-                  Exportar CSV
-                </button>
+                  <button onClick={() => setIsMaintenanceModalOpen(false)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500">
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="p-4 bg-purple-50/50 dark:bg-purple-900/5 border-b border-slate-200 dark:border-slate-800">
+                  <div className="flex flex-col md:flex-row gap-4 items-end">
+                    <div className="flex-1 space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Início</label>
+                      <input 
+                        type="date" 
+                        className="input-field h-10 text-sm" 
+                        value={modalStartDate}
+                        onChange={(e) => setModalStartDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex-1 space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fim</label>
+                      <input 
+                        type="date" 
+                        className="input-field h-10 text-sm" 
+                        value={modalEndDate}
+                        onChange={(e) => setModalEndDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="bg-white dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-500">
+                      {vehicleMaintenances.length} Registros
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-6">
+                  {vehicleMaintenances.length > 0 ? (
+                    <div className="space-y-4">
+                      {vehicleMaintenances.map((m) => (
+                        <div key={m.id} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="text-center min-w-[50px]">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">{new Date(m.date).toLocaleDateString('pt-BR', { month: 'short' })}</p>
+                                <p className="text-lg font-black text-slate-900 dark:text-white">{new Date(m.date).getDate()}</p>
+                              </div>
+                              <div className="h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
+                              <div>
+                                <p className="text-sm font-bold dark:text-white">{m.type}</p>
+                                <p className="text-[10px] font-bold text-purple-600 uppercase">{m.provider}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-slate-900 dark:text-white">{m.mileage.toLocaleString()} KM</p>
+                            </div>
+                          </div>
+                          <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 flex gap-2">
+                            <Info size={14} className="text-slate-400 shrink-0 mt-0.5" />
+                            <p className="text-xs text-slate-600 dark:text-slate-400 italic leading-relaxed">
+                              {m.description}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <WrenchIcon size={24} />
+                      </div>
+                      <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhuma manutenção encontrada no período.</p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex justify-start gap-3">
+                  <button 
+                    onClick={() => setIsMaintenanceModalOpen(false)} 
+                    className="px-6 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  >
+                    Fechar
+                  </button>
+                  <button 
+                    onClick={exportMaintenancesToCSV}
+                    className="px-6 py-2 bg-purple-600 text-white rounded-xl text-sm font-bold hover:bg-purple-700 transition-all flex items-center gap-2 shadow-lg shadow-purple-600/20"
+                  >
+                    <Download size={18} />
+                    Exportar CSV
+                  </button>
+                </div>
               </div>
             </div>
           </div>

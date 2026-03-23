@@ -824,9 +824,9 @@ export default function DailyReport() {
 
         {/* End Journey Modal */}
         {isEndModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
             <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white">Encerrar Jornada</h3>
                   <button 
@@ -916,9 +916,9 @@ export default function DailyReport() {
 
         {/* Previous Journey Found Modal */}
         {isPreviousJourneyModalOpen && previousJourney && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
             <div className="bg-white dark:bg-slate-900 w-full max-sm:max-w-xs max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-bold text-red-600">Jornada em Aberto</h3>
                   <button 
@@ -1010,9 +1010,9 @@ export default function DailyReport() {
 
         {/* Vehicle Occupied Modal */}
         {isVehicleOccupiedModalOpen && occupyingUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
             <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 space-y-6">
+              <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
                 <div className="flex flex-col items-center text-center space-y-4">
                   <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-full">
                     <Truck className="text-red-600 w-10 h-10" />
@@ -1056,9 +1056,9 @@ export default function DailyReport() {
 
         {/* Odometer Error Modal */}
         {isOdometerErrorModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
             <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 space-y-6">
+              <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
                 <div className="flex flex-col items-center text-center space-y-4">
                   <div className="bg-amber-100 dark:bg-amber-900/30 p-4 rounded-full">
                     <Zap className="text-amber-600 w-10 h-10" />
@@ -1101,9 +1101,9 @@ export default function DailyReport() {
 
         {/* Success Modal */}
         {isSuccessModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
             <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-8 space-y-6 flex flex-col items-center text-center">
+              <div className="p-8 space-y-6 flex flex-col items-center text-center max-h-[80vh] overflow-y-auto">
                 <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-full animate-bounce">
                   <CheckCircle2 className="text-green-600 w-12 h-12" />
                 </div>
@@ -1127,9 +1127,9 @@ export default function DailyReport() {
 
         {/* General Error Modal */}
         {isGeneralErrorModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
             <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 space-y-6">
+              <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
                 <div className="flex flex-col items-center text-center space-y-4">
                   <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-full">
                     <X className="text-red-600 w-10 h-10" />

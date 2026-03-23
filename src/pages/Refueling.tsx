@@ -473,20 +473,21 @@ export default function Refueling() {
 
         {/* Confirmation Modal */}
         {isConfirmModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">Confirmar Abastecimento</h3>
-                  <button 
-                    onClick={() => setIsConfirmModalOpen(false)}
-                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-                
-                <div className="bg-primary/5 rounded-xl p-6 space-y-4 border border-primary/10">
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Confirmar Abastecimento</h3>
+                    <button 
+                      onClick={() => setIsConfirmModalOpen(false)}
+                      className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                  
+                  <div className="bg-primary/5 rounded-xl p-6 space-y-4 border border-primary/10">
                   <div className="flex items-center justify-between border-b border-primary/10 pb-3">
                     <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Odômetro</span>
                     <span className="text-lg font-bold text-slate-900 dark:text-white">{Number(odometer).toLocaleString()} KM</span>
@@ -532,24 +533,26 @@ export default function Refueling() {
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
         {/* History Modal */}
         {isHistoryModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
-              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">Histórico</h3>
-                  <p className="text-xs text-slate-500 font-medium">{vehicle?.plate} • {vehicle?.model}</p>
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
+                <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Histórico</h3>
+                    <p className="text-xs text-slate-500 font-medium">{vehicle?.plate} • {vehicle?.model}</p>
+                  </div>
+                  <button 
+                    onClick={() => setIsHistoryModalOpen(false)}
+                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
                 </div>
-                <button 
-                  onClick={() => setIsHistoryModalOpen(false)}
-                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
 
               <div className="p-4 bg-amber-50/50 dark:bg-amber-900/5 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex flex-col md:flex-row gap-4 items-end">
@@ -641,23 +644,25 @@ export default function Refueling() {
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
         {/* Error Modal */}
         {isErrorModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 space-y-6">
-                <div className="flex flex-col items-center text-center space-y-4">
-                  <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-full">
-                    <AlertTriangle className="text-red-600 w-10 h-10" />
+          <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+                  <div className="flex flex-col items-center text-center space-y-4">
+                    <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-full">
+                      <AlertTriangle className="text-red-600 w-10 h-10" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-white">Erro no Registro</h3>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Ocorreu um problema ao tentar processar sua solicitação.
+                      </p>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Erro no Registro</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Ocorreu um problema ao tentar processar sua solicitação.
-                    </p>
-                  </div>
-                </div>
                 
                 <div className="space-y-3">
                   {errorMessages.map((msg, i) => (
@@ -696,29 +701,32 @@ export default function Refueling() {
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
         {/* Success Modal */}
         {isSuccessModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-8 space-y-6 flex flex-col items-center text-center">
-                <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-full animate-bounce">
-                  <CheckCircle2 className="text-green-600 w-12 h-12" />
+          <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="p-8 space-y-6 flex flex-col items-center text-center max-h-[80vh] overflow-y-auto">
+                  <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-full animate-bounce">
+                    <CheckCircle2 className="text-green-600 w-12 h-12" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Sucesso!</h3>
+                    <p className="text-slate-500 dark:text-slate-400">
+                      O abastecimento foi registrado corretamente no sistema.
+                    </p>
+                  </div>
+                  
+                  <button 
+                    onClick={() => navigate(-1)}
+                    className="w-full h-14 bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-600/20 hover:bg-green-700 transition-all"
+                  >
+                    Voltar para Parte Diária
+                  </button>
                 </div>
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Sucesso!</h3>
-                  <p className="text-slate-500 dark:text-slate-400">
-                    O abastecimento foi registrado corretamente no sistema.
-                  </p>
-                </div>
-                
-                <button 
-                  onClick={() => navigate(-1)}
-                  className="w-full h-14 bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-600/20 hover:bg-green-700 transition-all"
-                >
-                  Voltar para Parte Diária
-                </button>
               </div>
             </div>
           </div>

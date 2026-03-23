@@ -401,22 +401,23 @@ export default function Maintenance() {
 
         {/* History Modal */}
         {isHistoryModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
-              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-purple-50 dark:bg-purple-900/10">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">Histórico</h3>
-                  <p className="text-xs text-purple-600 font-bold uppercase tracking-wider">{vehicle?.plate} • {vehicle?.model}</p>
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+                <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-purple-50 dark:bg-purple-900/10 shrink-0">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Histórico</h3>
+                    <p className="text-xs text-purple-600 font-bold uppercase tracking-wider">{vehicle?.plate} • {vehicle?.model}</p>
+                  </div>
+                  <button 
+                    onClick={() => setIsHistoryModalOpen(false)}
+                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
                 </div>
-                <button 
-                  onClick={() => setIsHistoryModalOpen(false)}
-                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
 
-              <div className="p-4 bg-purple-50/50 dark:bg-purple-900/5 border-b border-slate-200 dark:border-slate-800">
+              <div className="p-4 bg-purple-50/50 dark:bg-purple-900/5 border-b border-slate-200 dark:border-slate-800 shrink-0">
                 <div className="flex flex-col md:flex-row gap-4 items-end">
                   <div className="flex-1 space-y-1.5 w-full">
                     <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Início</label>
@@ -492,7 +493,7 @@ export default function Maintenance() {
                 )}
               </div>
               
-              <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex justify-start gap-3">
+              <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex justify-start gap-3 shrink-0">
                 <button 
                   onClick={() => setIsHistoryModalOpen(false)}
                   className="px-6 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
@@ -509,29 +510,32 @@ export default function Maintenance() {
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
         {/* Success Modal */}
         {isSuccessModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-8 space-y-6 flex flex-col items-center text-center">
-                <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-full animate-bounce">
-                  <Save className="text-green-600 w-12 h-12" />
+          <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+                <div className="p-8 space-y-6 flex flex-col items-center text-center overflow-y-auto flex-1">
+                  <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-full animate-bounce">
+                    <Save className="text-green-600 w-12 h-12" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Sucesso!</h3>
+                    <p className="text-slate-500 dark:text-slate-400">
+                      A manutenção foi registrada corretamente no sistema.
+                    </p>
+                  </div>
+                  
+                  <button 
+                    onClick={() => navigate(-1)}
+                    className="w-full h-14 bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-600/20 hover:bg-green-700 transition-all"
+                  >
+                    Voltar para Frota
+                  </button>
                 </div>
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Sucesso!</h3>
-                  <p className="text-slate-500 dark:text-slate-400">
-                    A manutenção foi registrada corretamente no sistema.
-                  </p>
-                </div>
-                
-                <button 
-                  onClick={() => navigate(-1)}
-                  className="w-full h-14 bg-green-600 text-white rounded-xl font-bold shadow-lg shadow-green-600/20 hover:bg-green-700 transition-all"
-                >
-                  Voltar para Frota
-                </button>
               </div>
             </div>
           </div>
@@ -539,20 +543,21 @@ export default function Maintenance() {
 
         {/* Error Modal */}
         {isErrorModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 space-y-6">
-                <div className="flex flex-col items-center text-center space-y-4">
-                  <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-full">
-                    <X className="text-red-600 w-10 h-10" />
+          <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+                <div className="p-6 space-y-6 overflow-y-auto flex-1">
+                  <div className="flex flex-col items-center text-center space-y-4">
+                    <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-full">
+                      <X className="text-red-600 w-10 h-10" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-white">Erro no Registro</h3>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Ocorreu um problema ao tentar processar sua solicitação.
+                      </p>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Erro no Registro</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Ocorreu um problema ao tentar processar sua solicitação.
-                    </p>
-                  </div>
-                </div>
                 
                 <div className="space-y-3">
                   {errorMessages.map((msg, i) => (
@@ -575,7 +580,8 @@ export default function Maintenance() {
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
       </div>
     </div>
   );
