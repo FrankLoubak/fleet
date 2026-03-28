@@ -47,7 +47,8 @@ export default function Dashboard() {
     comparisonData: [] as any[],
     vehicleSpendingData: [] as any[],
     recentActivities: [] as any[],
-    maintenanceAlerts: [] as any[]
+    maintenanceAlerts: [] as any[],
+    pendingJourneysCount: 0
   });
 
   const loadData = async () => {
@@ -66,9 +67,16 @@ export default function Dashboard() {
         .from('maintenance_requests')
         .select('*');
 
+      const { data: pendingJourneys, error: pjError } = await supabase
+        .from('journeys')
+        .select('id')
+        .eq('status', 'encerrada')
+        .eq('validation_status', 'pendente');
+
       if (refError) throw refError;
       if (mainError) throw mainError;
       if (reqError) throw reqError;
+      if (pjError) throw pjError;
 
       // Normalize data (Supabase uses snake_case, existing code uses camelCase)
       const normalizedRefuelings = (allRefuelings || []).map(r => ({
@@ -339,7 +347,8 @@ export default function Dashboard() {
         comparisonData,
         vehicleSpendingData: vehicleSpending.slice(0, 5),
         recentActivities,
-        maintenanceAlerts: alerts
+        maintenanceAlerts: alerts,
+        pendingJourneysCount: pendingJourneys?.length || 0
       });
     } catch (err) {
       console.error('Error loading dashboard data:', err);
@@ -443,6 +452,28 @@ export default function Dashboard() {
         </header>
 
         <div className="p-4 md:p-8 space-y-8">
+          {/* Pending Journeys Notification */}
+          {stats.pendingJourneysCount > 0 && (
+            <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center shrink-0">
+                  <Clock size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-amber-900 dark:text-amber-400">Validações Pendentes</h3>
+                  <p className="text-sm text-amber-700 dark:text-amber-500/80">Existem {stats.pendingJourneysCount} jornadas aguardando sua validação para o banco de horas.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => navigate('/journeys')}
+                className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2"
+              >
+                <span>Validar Agora</span>
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          )}
+
           {/* Filters and Stats */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-4 flex flex-col gap-4">

@@ -22,7 +22,9 @@ import {
   Info,
   Download,
   Loader2,
-  Menu
+  Menu,
+  ShieldCheck,
+  AlertCircle
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { cn } from '../utils';
@@ -183,7 +185,9 @@ export default function Journeys() {
         endOdometer: j.end_odometer,
         distanceTraveled: j.distance_traveled,
         status: j.status,
-        observations: j.observations
+        observations: j.observations,
+        validation_status: j.validation_status,
+        validated_by: j.validated_by
       }));
 
       setJourneys(normalizedJourneys);
@@ -205,6 +209,54 @@ export default function Journeys() {
       setUsers(normalizedUsers);
     } catch (err) {
       console.error('Error loading journeys data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleValidateJourney = async (journey: Journey) => {
+    if (!currentUser) return;
+    setLoading(true);
+    try {
+      // Calculate excess time
+      const startTime = new Date(journey.startTime);
+      const endTime = new Date(journey.endTime!);
+      const durationMs = endTime.getTime() - startTime.getTime();
+      const eightHoursMs = 8 * 60 * 60 * 1000;
+      
+      const excessMs = Math.max(0, durationMs - eightHoursMs);
+      const excessHrs = Math.floor(excessMs / (1000 * 60 * 60));
+      const excessMins = Math.floor((excessMs % (1000 * 60 * 60)) / (1000 * 60));
+      const formattedExcess = `${excessHrs.toString().padStart(2, '0')}:${excessMins.toString().padStart(2, '0')}`;
+
+      // 1. Update journey status
+      const { error: jError } = await supabase
+        .from('journeys')
+        .update({
+          validation_status: 'validada',
+          validated_by: currentUser.id
+        })
+        .eq('id', journey.id);
+
+      if (jError) throw jError;
+
+      // 2. Insert into banco_de_horas if there's excess time
+      if (excessMs > 0) {
+        const { error: bError } = await supabase
+          .from('banco_de_horas')
+          .insert([{
+            user_id: journey.userId,
+            journey_id: journey.id,
+            horas_adquiridas: formattedExcess
+          }]);
+        
+        if (bError) throw bError;
+      }
+
+      await loadData();
+    } catch (err) {
+      console.error('Error validating journey:', err);
+      alert('Erro ao validar jornada.');
     } finally {
       setLoading(false);
     }
@@ -555,6 +607,24 @@ export default function Journeys() {
         </header>
 
         <div className="p-4 md:p-8 space-y-6">
+          {/* Validation Notification Box */}
+          {filteredJourneys.some(j => j.status === 'encerrada' && j.validation_status === 'pendente') && (
+            <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center shrink-0">
+                  <AlertCircle size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-amber-900 dark:text-amber-400">Jornadas Pendentes de Validação</h3>
+                  <p className="text-sm text-amber-700 dark:text-amber-500/80">Existem jornadas com mais de 08 horas que precisam ser validadas para o banco de horas.</p>
+                </div>
+              </div>
+              <div className="px-4 py-2 bg-amber-100 dark:bg-amber-900/30 rounded-xl text-amber-700 dark:text-amber-400 font-bold text-sm">
+                {filteredJourneys.filter(j => j.status === 'encerrada' && j.validation_status === 'pendente').length} Pendentes
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col lg:flex-row gap-4 items-end justify-between">
             <div className="flex flex-col md:flex-row gap-4 w-full lg:w-auto flex-1">
               <div className="flex flex-col gap-1.5 flex-1 md:max-w-xs">
@@ -661,6 +731,8 @@ export default function Journeys() {
                   <th className="px-6 py-4">Motorista</th>
                   <th className="px-6 py-4">KM (Início/Fim)</th>
                   <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Duração / Excedente</th>
+                  <th className="px-6 py-4">Validação</th>
                   <th className="px-6 py-4 text-right">Ações</th>
                 </tr>
               </thead>
@@ -714,8 +786,63 @@ export default function Journeys() {
                           {journey.status}
                         </span>
                       </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                            {journey.endTime ? (() => {
+                              const start = new Date(journey.startTime);
+                              const end = new Date(journey.endTime);
+                              const diff = end.getTime() - start.getTime();
+                              const h = Math.floor(diff / (1000 * 60 * 60));
+                              const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                              return `${h}h ${m}m`;
+                            })() : '---'}
+                          </span>
+                          {journey.endTime && (() => {
+                            const start = new Date(journey.startTime);
+                            const end = new Date(journey.endTime);
+                            const diff = end.getTime() - start.getTime();
+                            const eightHoursMs = 8 * 60 * 60 * 1000;
+                            if (diff > eightHoursMs) {
+                              const excess = diff - eightHoursMs;
+                              const eh = Math.floor(excess / (1000 * 60 * 60));
+                              const em = Math.floor((excess % (1000 * 60 * 60)) / (1000 * 60));
+                              return <span className="text-[10px] text-amber-600 font-bold">+{eh}h {em}m excedente</span>;
+                            }
+                            return null;
+                          })()}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {journey.status === 'encerrada' && (
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              "px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider",
+                              journey.validation_status === 'validada' 
+                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" 
+                                : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                            )}>
+                              {journey.validation_status || 'validada'}
+                            </span>
+                            {journey.validated_by && (
+                              <span className="text-[10px] text-slate-400 italic">
+                                por {users.find(u => u.id === journey.validated_by)?.name || 'Admin'}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {journey.status === 'encerrada' && journey.validation_status === 'pendente' && (
+                            <button 
+                              onClick={() => handleValidateJourney(journey)}
+                              className="p-2 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors text-green-600 dark:text-green-400"
+                              title="Validar Jornada"
+                            >
+                              <ShieldCheck size={18} />
+                            </button>
+                          )}
                           {vehicle && (
                             <>
                               <button 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Clock, Zap, Fuel, Wrench, Play, ClipboardList, Truck, Power, User, LogOut, CheckCircle2, X, BarChart3, History, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Zap, Fuel, Wrench, Play, ClipboardList, Truck, Power, User, LogOut, CheckCircle2, X, BarChart3, History, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
 import { cn } from '../utils';
 import { User as UserType, Journey, Vehicle } from '../types';
 import { supabase } from '../lib/supabase';
@@ -25,7 +25,9 @@ export default function DailyReport() {
   const [isVehicleOccupiedModalOpen, setIsVehicleOccupiedModalOpen] = useState(false);
   const [isOdometerErrorModalOpen, setIsOdometerErrorModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [isValidationAlertModalOpen, setIsValidationAlertModalOpen] = useState(false);
   const [isGeneralErrorModalOpen, setIsGeneralErrorModalOpen] = useState(false);
+  const [timeBankTotal, setTimeBankTotal] = useState('00:00');
   const [errorMessages, setErrorMessages] = useState<string[]>([]);
   const [lastOdometerValue, setLastOdometerValue] = useState(0);
   const [occupyingUser, setOccupyingUser] = useState<UserType | null>(null);
@@ -110,6 +112,23 @@ export default function DailyReport() {
         setStartOdometer(journey.startOdometer.toString());
         setStartTime(journey.startTime.split('T')[1].substring(0, 5));
         setStartDate(journey.startTime.split('T')[0]);
+      }
+
+      // Fetch time bank total
+      const { data: tbData } = await supabase
+        .from('banco_de_horas')
+        .select('horas_adquiridas')
+        .eq('user_id', user.id);
+      
+      if (tbData) {
+        let totalMins = 0;
+        tbData.forEach(r => {
+          const [h, m] = r.horas_adquiridas.split(':').map(Number);
+          totalMins += (h * 60) + m;
+        });
+        const totalH = Math.floor(totalMins / 60);
+        const totalM = totalMins % 60;
+        setTimeBankTotal(`${totalH.toString().padStart(2, '0')}:${totalM.toString().padStart(2, '0')}`);
       }
     };
     initPage();
@@ -356,6 +375,15 @@ export default function DailyReport() {
       const endTimeStr = `${endDate}T${endTime}`;
       const dist = endOdom - startOdom;
 
+      // Calculate duration
+      const startTimeDate = new Date(currentJourney!.startTime);
+      const endTimeDate = new Date(endTimeStr);
+      const durationMs = endTimeDate.getTime() - startTimeDate.getTime();
+      const eightHoursMs = 8 * 60 * 60 * 1000;
+      
+      const needsValidation = durationMs > eightHoursMs;
+      const validationStatus = needsValidation ? 'pendente' : 'validada';
+
       const { error } = await supabase
         .from('journeys')
         .update({
@@ -364,7 +392,8 @@ export default function DailyReport() {
           end_time_manual: endTime,
           end_odometer: endOdom,
           distance_traveled: dist,
-          status: 'encerrada'
+          status: 'encerrada',
+          validation_status: validationStatus
         })
         .eq('id', currentJourney!.id);
 
@@ -392,7 +421,11 @@ export default function DailyReport() {
       setSelectedVehicle('');
       setStartOdometer('');
       
-      setIsSuccessModalOpen(true);
+      if (needsValidation) {
+        setIsValidationAlertModalOpen(true);
+      } else {
+        setIsSuccessModalOpen(true);
+      }
     } catch (err: any) {
       console.error('Error ending journey:', err);
       setErrorMessages([err.message || 'Erro ao encerrar jornada. Verifique sua conexão.']);
@@ -593,6 +626,30 @@ export default function DailyReport() {
               ))}
             </div>
           )}
+
+          {/* Time Bank Summary Card */}
+          <div className="card p-6 bg-primary text-white border-none shadow-xl shadow-primary/20 overflow-hidden relative">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <Clock size={20} />
+                </div>
+                <span className="text-sm font-medium text-white/80">Seu Banco de Horas</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <h3 className="text-4xl font-bold">{timeBankTotal}</h3>
+                <span className="text-sm font-medium text-white/60">HH:MM</span>
+              </div>
+              <button 
+                onClick={() => navigate('/time-bank')}
+                className="mt-4 text-xs text-white/80 flex items-center gap-1 hover:text-white transition-colors"
+              >
+                <span>Ver histórico detalhado</span>
+                <ChevronRight size={12} />
+              </button>
+            </div>
+          </div>
 
           <section className="space-y-4">
             <div className="flex items-center gap-2">
@@ -1099,7 +1156,32 @@ export default function DailyReport() {
           </div>
         )}
 
-        {/* Success Modal */}
+        {/* Validation Alert Modal */}
+      {isValidationAlertModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 text-center">
+              <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Clock size={40} />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Jornada Encerrada</h3>
+              <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                Sua jornada foi superior a 08 horas e será submetida à validação do gestor para o registro no banco de horas.
+              </p>
+            </div>
+            <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800">
+              <button 
+                onClick={() => setIsValidationAlertModalOpen(false)}
+                className="w-full py-4 bg-primary text-white rounded-2xl font-bold text-lg shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
         {isSuccessModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
             <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">

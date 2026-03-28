@@ -82,4 +82,14 @@ export interface Journey {
   distanceTraveled?: number;
   status: 'aberta' | 'encerrada';
   observations?: string;
+  validation_status?: 'pendente' | 'validada';
+  validated_by?: string;
+}
+
+export interface BancoDeHoras {
+  id: string;
+  userId: string;
+  journeyId: string;
+  horasAdquiridas: string; // Format "HH:MM"
+  createdAt: string;
 }

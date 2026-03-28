@@ -10,6 +10,7 @@ const navItems = [
   { icon: Car, label: 'Veículos', path: '/vehicles' },
   { icon: Wrench, label: 'Manutenções', path: '/maintenance-list', adminOnly: true },
   { icon: Clock, label: 'Jornadas', path: '/journeys', adminOnly: true },
+  { icon: Clock, label: 'Banco de Horas', path: '/time-bank' },
   { icon: BarChart3, label: 'Relatórios', path: '/dashboard', adminOnly: true },
   { icon: User, label: 'Perfil', path: '/profile' },
 ];
@@ -46,7 +47,13 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
           .select('*', { count: 'exact', head: true })
           .eq('status', 'pendente');
           
-        setAlertCount((pendingReqCount || 0) + (overdueMainCount || 0));
+        const { count: pendingJourneysCount } = await supabase
+          .from('journeys')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'encerrada')
+          .eq('validation_status', 'pendente');
+          
+        setAlertCount((pendingReqCount || 0) + (overdueMainCount || 0) + (pendingJourneysCount || 0));
       } catch (err) {
         console.error('Error fetching alerts for sidebar:', err);
       }
@@ -218,6 +225,14 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                 <span className={cn(
                   "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
                   isActive ? "bg-white text-primary" : "bg-red-500 text-white"
+                )}>
+                  {alertCount}
+                </span>
+              )}
+              {item.label === 'Jornadas' && alertCount > 0 && (
+                <span className={cn(
+                  "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
+                  isActive ? "bg-white text-primary" : "bg-amber-500 text-white"
                 )}>
                   {alertCount}
                 </span>
