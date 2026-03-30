@@ -231,7 +231,7 @@ export default function DailyReport() {
       if (vehicleJourneys && vehicleJourneys.length > 0) {
         const j = vehicleJourneys[0];
         const userWhoOpened = users.find((u: UserType) => u.id === j.user_id);
-        setOccupyingUser(userWhoOpened || { id: j.user_id, name: 'Outro Motorista', email: '', role: 'Motorista', avatar: '' });
+        setOccupyingUser(userWhoOpened || { id: j.user_id, name: 'Outro Motorista', email: '', role: 'Operador', avatar: '' });
         setIsVehicleOccupiedModalOpen(true);
         return;
       }

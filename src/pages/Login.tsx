@@ -1,29 +1,136 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Truck, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, User } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Truck, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, User, Shield } from 'lucide-react';
 import { cn } from '../utils';
 import { supabase } from '../lib/supabase';
 
 export default function Login() {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
+  const isSignUp = !!token;
+
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
-  const [role, setRole] = useState<'Admin' | 'Motorista'>('Motorista');
   const [cpf, setCpf] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [inviteRole, setInviteRole] = useState<string | null>(null);
+  const [inviteId, setInviteId] = useState<string | null>(null);
+  const [invitedBy, setInvitedBy] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Busca convite pelo token quando a URL tem ?token=XXXX
+  useEffect(() => {
+    if (!token) return;
+
+    const fetchInvite = async () => {
+      setInviteLoading(true);
+      setInviteError('');
+      try {
+        const { data, error } = await supabase
+          .from('invites')
+          .select('id, role, used, invited_by, expires_at')
+          .eq('token', token)
+          .single();
+
+        if (error || !data) {
+          setInviteError('Convite não encontrado ou inválido.');
+          return;
+        }
+
+        if (data.used) {
+          setInviteError('Este convite já foi utilizado.');
+          return;
+        }
+
+        if (data.expires_at && new Date(data.expires_at) < new Date()) {
+          setInviteError('Este convite expirou.');
+          return;
+        }
+
+        setInviteRole(data.role);
+        setInviteId(data.id);
+        setInvitedBy(data.invited_by);
+      } catch (err: any) {
+        setInviteError('Erro ao verificar convite.');
+      } finally {
+        setInviteLoading(false);
+      }
+    };
+
+    fetchInvite();
+  }, [token]);
+
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
     setLoading(true);
 
     try {
-      // Clean CPF (remove dots and dashes)
+      const cleanCpf = cpf.replace(/\D/g, '');
+      if (cleanCpf.length !== 11) {
+        throw new Error('CPF deve ter 11 dígitos.');
+      }
+
+      if (!inviteRole || !inviteId) {
+        throw new Error('Convite inválido. Não foi possível determinar o papel de acesso.');
+      }
+
+      const loginEmail = `${cleanCpf}@fleetmanager.com`;
+
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: loginEmail,
+        password,
+        options: {
+          data: {
+            name,
+            role: inviteRole,
+            cpf: cleanCpf,
+            invited_by: invitedBy,
+          }
+        }
+      });
+
+      if (signUpError) throw signUpError;
+
+      if (signUpData.user) {
+        // Marcar convite como usado
+        await supabase
+          .from('invites')
+          .update({ used: true, used_by: signUpData.user.id })
+          .eq('id', inviteId);
+
+        // Atualizar profile com invited_by (o trigger do Supabase pode já criar o profile)
+        if (invitedBy) {
+          await supabase
+            .from('profiles')
+            .update({ invited_by: invitedBy })
+            .eq('id', signUpData.user.id);
+        }
+
+        setSuccess('Conta criada com sucesso! Você já pode fazer login.');
+        navigate('/login');
+      }
+    } catch (err: any) {
+      console.error('SignUp error:', err);
+      setError(err.message || 'Erro ao criar conta. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
       const cleanCpf = cpf.replace(/\D/g, '');
       if (cleanCpf.length !== 11) {
         throw new Error('CPF deve ter 11 dígitos.');
@@ -31,78 +138,51 @@ export default function Login() {
 
       let loginEmail = `${cleanCpf}@fleetmanager.com`;
 
-      if (!isSignUp) {
-        // Para login, buscamos o e-mail associado ao CPF na tabela profiles
-        // Isso permite que usuários criados manualmente ou com e-mails reais consigam logar pelo CPF
-        const { data: profileLookup, error: lookupError } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('cpf', cleanCpf)
-          .single();
-        
-        if (profileLookup?.email) {
-          loginEmail = profileLookup.email;
-        } else if (lookupError && !isSignUp) {
-          console.warn('CPF não encontrado na tabela profiles, tentando e-mail padrão...');
-        }
+      // Buscar e-mail associado ao CPF na tabela profiles
+      const { data: profileLookup, error: lookupError } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('cpf', cleanCpf)
+        .single();
+
+      if (profileLookup?.email) {
+        loginEmail = profileLookup.email;
+      } else if (lookupError) {
+        console.warn('CPF não encontrado na tabela profiles, tentando e-mail padrão...');
       }
 
-      if (isSignUp) {
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: loginEmail,
-          password,
-          options: {
-            data: {
-              name,
-              role,
-              cpf: cleanCpf,
-            }
-          }
-        });
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password,
+      });
 
-        if (signUpError) throw signUpError;
-        
-        if (signUpData.user) {
-          setSuccess('Conta criada com sucesso! Você já pode entrar agora.');
-          setIsSignUp(false);
-        }
-      } else {
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-          email: loginEmail,
-          password,
-        });
+      if (authError) throw authError;
 
-        if (authError) throw authError;
+      if (authData.user) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .single();
 
-        if (authData.user) {
-          // Fetch profile
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', authData.user.id)
-            .single();
+        if (profileError) throw profileError;
 
-          if (profileError) throw profileError;
+        localStorage.setItem('fleet_user', JSON.stringify(profile));
 
-          // Save user to localStorage for session persistence (compatibility with existing code)
-          localStorage.setItem('fleet_user', JSON.stringify(profile));
-          
-          // Check if user has an open journey
-          const { data: openJourneys, error: journeyError } = await supabase
-            .from('journeys')
-            .select('id')
-            .eq('user_id', authData.user.id)
-            .eq('status', 'aberta');
+        const { data: openJourneys, error: journeyError } = await supabase
+          .from('journeys')
+          .select('id')
+          .eq('user_id', authData.user.id)
+          .eq('status', 'aberta');
 
-          if (journeyError) console.error('Error checking journeys', journeyError);
+        if (journeyError) console.error('Error checking journeys', journeyError);
 
-          const hasOpenJourney = openJourneys && openJourneys.length > 0;
+        const hasOpenJourney = openJourneys && openJourneys.length > 0;
 
-          if (hasOpenJourney || profile.role === 'Motorista') {
-            navigate('/daily-report');
-          } else {
-            navigate('/dashboard');
-          }
+        if (hasOpenJourney || profile.role === 'Operador') {
+          navigate('/daily-report');
+        } else {
+          navigate('/dashboard');
         }
       }
     } catch (err: any) {
@@ -112,6 +192,8 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  const roleLabel = inviteRole === 'Admin' ? 'Administrador' : inviteRole === 'Operador' ? 'Operador' : inviteRole ?? '';
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background-light dark:bg-background-dark">
@@ -130,7 +212,7 @@ export default function Login() {
           <h2 className="text-xl font-semibold mb-6 text-center">
             {isSignUp ? 'Criar nova conta' : 'Bem-vindo de volta'}
           </h2>
-          
+
           {error && (
             <div className="mb-6 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3 text-red-600 dark:text-red-400 text-sm animate-in fade-in slide-in-from-top-1">
               <AlertCircle size={18} className="shrink-0" />
@@ -145,157 +227,206 @@ export default function Login() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {isSignUp && (
-              <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1" htmlFor="name">
-                    Nome Completo
-                  </label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
-                      <User size={20} />
-                    </div>
-                    <input
-                      id="name"
-                      type="text"
-                      className="input-field pl-10"
-                      placeholder="Seu nome"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                    />
-                  </div>
+          {/* Formulário de Cadastro via Token */}
+          {isSignUp && (
+            <>
+              {inviteLoading && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  <span className="ml-2 text-slate-500">Verificando convite...</span>
                 </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">
-                    Tipo de Acesso
-                  </label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setRole('Motorista')}
-                      className={cn(
-                        "h-12 rounded-xl border-2 font-bold transition-all",
-                        role === 'Motorista' 
-                          ? "border-primary bg-primary/5 text-primary" 
-                          : "border-slate-200 dark:border-slate-800 text-slate-500"
-                      )}
-                    >
-                      Motorista
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRole('Admin')}
-                      className={cn(
-                        "h-12 rounded-xl border-2 font-bold transition-all",
-                        role === 'Admin' 
-                          ? "border-primary bg-primary/5 text-primary" 
-                          : "border-slate-200 dark:border-slate-800 text-slate-500"
-                      )}
-                    >
-                      Admin
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1" htmlFor="cpf">
-                CPF
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
-                  <User size={20} />
-                </div>
-                <input
-                  id="cpf"
-                  type="text"
-                  className="input-field pl-10"
-                  placeholder="000.000.000-00"
-                  value={cpf}
-                  onChange={(e) => {
-                    // Simple mask for CPF
-                    let value = e.target.value.replace(/\D/g, '');
-                    if (value.length <= 11) {
-                      setCpf(value);
-                    }
-                  }}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between items-center px-1">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="password">
-                  Senha
-                </label>
-                <a className="text-xs font-semibold text-primary hover:underline" href="#">
-                  Esqueci minha senha
-                </a>
-              </div>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
-                  <Lock size={20} />
-                </div>
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  className="input-field pl-10 pr-12"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center">
-              <input
-                id="remember"
-                type="checkbox"
-                className="h-4 w-4 text-primary focus:ring-primary border-slate-300 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800"
-              />
-              <label className="ml-2 block text-sm text-slate-600 dark:text-slate-400" htmlFor="remember">
-                Lembrar de mim
-              </label>
-            </div>
-
-            <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? (
-                <div className="flex items-center justify-center gap-2">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>{isSignUp ? 'Criando conta...' : 'Entrando...'}</span>
-                </div>
-              ) : (
-                isSignUp ? 'Criar Conta' : 'Entrar'
               )}
-            </button>
-          </form>
 
-          <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 text-center">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {isSignUp ? 'Já tem uma conta?' : 'Não tem uma conta?'}
-              {' '}
-              <button 
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="font-semibold text-primary hover:underline"
-              >
-                {isSignUp ? 'Fazer login' : 'Criar uma agora'}
+              {!inviteLoading && inviteError && (
+                <div className="mb-6 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3 text-red-600 dark:text-red-400 text-sm">
+                  <AlertCircle size={18} className="shrink-0" />
+                  <p>{inviteError}</p>
+                </div>
+              )}
+
+              {!inviteLoading && !inviteError && inviteRole && (
+                <form onSubmit={handleSignUp} className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1" htmlFor="name">
+                      Nome Completo
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
+                        <User size={20} />
+                      </div>
+                      <input
+                        id="name"
+                        type="text"
+                        className="input-field pl-10"
+                        placeholder="Seu nome completo"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1" htmlFor="cpf-signup">
+                      CPF
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
+                        <User size={20} />
+                      </div>
+                      <input
+                        id="cpf-signup"
+                        type="text"
+                        className="input-field pl-10"
+                        placeholder="000.000.000-00"
+                        value={cpf}
+                        onChange={(e) => {
+                          let value = e.target.value.replace(/\D/g, '');
+                          if (value.length <= 11) {
+                            setCpf(value);
+                          }
+                        }}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">
+                      Nível de Acesso
+                    </label>
+                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                      <Shield size={18} className="text-primary shrink-0" />
+                      <span className="text-sm font-semibold text-primary">{roleLabel}</span>
+                      <span className="text-xs text-slate-400 ml-auto">(definido pelo convite)</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1" htmlFor="password-signup">
+                      Senha
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
+                        <Lock size={20} />
+                      </div>
+                      <input
+                        id="password-signup"
+                        type={showPassword ? 'text' : 'password'}
+                        className="input-field pl-10 pr-12"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                      <button
+                        type="button"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button type="submit" className="btn-primary" disabled={loading}>
+                    {loading ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Criando conta...</span>
+                      </div>
+                    ) : (
+                      'Criar Conta'
+                    )}
+                  </button>
+                </form>
+              )}
+            </>
+          )}
+
+          {/* Formulário de Login */}
+          {!isSignUp && (
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1" htmlFor="cpf">
+                  CPF
+                </label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
+                    <User size={20} />
+                  </div>
+                  <input
+                    id="cpf"
+                    type="text"
+                    className="input-field pl-10"
+                    placeholder="000.000.000-00"
+                    value={cpf}
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/\D/g, '');
+                      if (value.length <= 11) {
+                        setCpf(value);
+                      }
+                    }}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="password">
+                    Senha
+                  </label>
+                  <a className="text-xs font-semibold text-primary hover:underline" href="#">
+                    Esqueci minha senha
+                  </a>
+                </div>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
+                    <Lock size={20} />
+                  </div>
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    className="input-field pl-10 pr-12"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  id="remember"
+                  type="checkbox"
+                  className="h-4 w-4 text-primary focus:ring-primary border-slate-300 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800"
+                />
+                <label className="ml-2 block text-sm text-slate-600 dark:text-slate-400" htmlFor="remember">
+                  Lembrar de mim
+                </label>
+              </div>
+
+              <button type="submit" className="btn-primary" disabled={loading}>
+                {loading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Entrando...</span>
+                  </div>
+                ) : (
+                  'Entrar'
+                )}
               </button>
-            </p>
-          </div>
+            </form>
+          )}
         </div>
 
         <div className="text-center space-y-4">

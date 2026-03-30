@@ -65,7 +65,7 @@ export const MOCK_USERS: User[] = [
     id: 'u2',
     name: 'Carlos Oliveira',
     email: 'carlos@fleet.com',
-    role: 'Motorista',
+    role: 'Operador',
     cpf: '22222222222',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop',
     phone: '(11) 91234-5678'
@@ -83,7 +83,7 @@ export const MOCK_USERS: User[] = [
     id: 'u4',
     name: 'João Pereira',
     email: 'joao@fleet.com',
-    role: 'Motorista',
+    role: 'Operador',
     cpf: '44444444444',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
     phone: '(11) 96666-5555'
@@ -92,7 +92,7 @@ export const MOCK_USERS: User[] = [
     id: 'u5',
     name: 'Maria Souza',
     email: 'maria@fleet.com',
-    role: 'Motorista',
+    role: 'Operador',
     cpf: '55555555555',
     avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
     phone: '(11) 95555-4444'

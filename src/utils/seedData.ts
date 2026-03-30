@@ -7,7 +7,7 @@ export function generateSeedData() {
   const maintenances: MaintenanceRecord[] = [];
   const maintenanceRequests: any[] = [];
   
-  const drivers = MOCK_USERS.filter(u => u.role === 'Motorista');
+  const drivers = MOCK_USERS.filter(u => u.role === 'Operador');
   const vehicles = [...MOCK_VEHICLES];
   
   // Track odometer for each vehicle
