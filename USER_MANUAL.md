@@ -6,14 +6,24 @@ Bem-vindo ao **FleetManager**, sua solução completa para gestão inteligente d
 
 ## 1. Acesso ao Sistema
 
-### Login e Cadastro
+### Login
 - **CPF:** Utilize seu CPF (apenas números) para identificação.
 - **Senha:** Insira sua senha cadastrada.
-- **Criar Conta:** Se for seu primeiro acesso, utilize a opção "Criar uma agora". Novos cadastros são criados com o perfil de **Motorista** por padrão. O perfil de **Administrador** é concedido pelo gestor do sistema.
+
+### Como criar uma conta
+O acesso ao sistema é feito exclusivamente por **link de convite**. Você receberá um link enviado pelo administrador ou pelo responsável pela sua organização. Ao clicar no link, será direcionado para a tela de cadastro com seu nível de acesso já definido.
+
+### Níveis de acesso
+
+| Nível | Quem é | O que pode fazer |
+|---|---|---|
+| **Root** | Responsável pela assinatura do sistema | Acesso total, gerencia administradores |
+| **Admin** | Gestor da frota | Dashboard, relatórios, manutenções, usuários |
+| **Operador** | Motorista ou operador de máquina | Parte diária, abastecimento, solicitação de manutenção |
 
 ---
 
-## 2. Visão Geral (Dashboard) - *Apenas Administradores*
+## 2. Visão Geral (Dashboard) - *Admin e Root*
 O Dashboard oferece uma visão analítica da frota:
 - **Evolução de Gastos:** Gráfico comparativo entre combustível e manutenção.
 - **Participação no Gasto:** Veja quanto cada veículo representa no custo total.
@@ -30,12 +40,12 @@ Na tela de **Frota**, você pode:
 
 ---
 
-## 4. Operação Diária (Motorista)
+## 4. Operação Diária (Operador)
 
 ### Iniciar Jornada (Parte Diária)
 1. Selecione o veículo ou máquina que irá utilizar.
 2. Confira a data e o horário.
-3. Insira o **Odômetro Inicial** (para veículos) ou **Horímetro Inicial** (para máquinas). O sistema validará se o valor é maior ou igual ao último registro conhecido na base de dados.
+3. Insira o **Odômetro Inicial** (para veículos) ou **Horímetro Inicial** (para máquinas). O sistema validará se o valor é maior ou igual ao último registro conhecido.
 4. Clique em **Iniciar Jornada**.
 
 ### Durante a Jornada
@@ -47,25 +57,33 @@ Com a jornada aberta, você terá acesso aos botões:
 ### Encerrar Jornada
 1. Clique em **Encerrar Jornada**.
 2. Insira o **Odômetro/Horímetro Final**.
-3. O sistema verificará se o valor final é estritamente maior que o inicial e se é compatível com abastecimentos e manutenções realizados durante a jornada.
-4. Ao encerrar, o odômetro/horímetro do veículo será atualizado automaticamente para o valor final informado.
+3. O sistema verificará se o valor final é estritamente maior que o inicial e compatível com os registros da jornada.
+4. Ao encerrar, o odômetro/horímetro do veículo será atualizado automaticamente.
 
 ---
 
-## 5. Manutenções - *Apenas Administradores*
+## 5. Manutenções - *Admin e Root*
 Gerencie o ciclo de vida das manutenções:
-- **Pendentes:** Visualize solicitações feitas pelos motoristas.
+- **Pendentes:** Visualize solicitações feitas pelos operadores.
 - **Autorizar:** Aprove uma solicitação para que ela se torne uma manutenção programada.
-- **Executadas:** Marque as manutenções como concluídas após o serviço ser realizado na oficina.
+- **Executadas:** Marque as manutenções como concluídas após o serviço ser realizado.
 
 ---
 
-## 6. Histórico de Jornadas - *Apenas Administradores*
-Acesse o registro completo de todas as viagens realizadas, incluindo distâncias percorridas, motoristas responsáveis e tempos de utilização.
+## 6. Histórico de Jornadas - *Admin e Root*
+Acesse o registro completo de todas as viagens realizadas, incluindo distâncias percorridas, operadores responsáveis e tempos de utilização.
 
 ---
 
-## 7. Dicas de Uso
+## 7. Gestão de Usuários - *Admin e Root*
+Na tela de **Usuários**, você pode:
+- Visualizar todos os usuários cadastrados, seus papéis e quem os convidou.
+- **Gerar link de convite** para novos Admins ou Operadores.
+- O link gerado tem validade de **7 dias** e é de uso único.
+
+---
+
+## 8. Dicas de Uso
 - **Modo Escuro:** O sistema se adapta automaticamente às configurações do seu dispositivo.
 - **Responsividade:** Em dispositivos móveis, as tabelas podem ser deslizadas lateralmente para visualização completa.
 - **Alertas:** Fique atento ao ícone de sino no topo da tela para notificações importantes.
