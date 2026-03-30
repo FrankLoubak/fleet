@@ -9,7 +9,7 @@ Bem-vindo ao **FleetManager**, sua solução completa para gestão inteligente d
 ### Login e Cadastro
 - **CPF:** Utilize seu CPF (apenas números) para identificação.
 - **Senha:** Insira sua senha cadastrada.
-- **Criar Conta:** Se for seu primeiro acesso, utilize a opção "Criar uma agora". Você deve escolher entre o perfil de **Motorista** ou **Administrador**.
+- **Criar Conta:** Se for seu primeiro acesso, utilize a opção "Criar uma agora". Novos cadastros são criados com o perfil de **Motorista** por padrão. O perfil de **Administrador** é concedido pelo gestor do sistema.
 
 ---
 
@@ -69,3 +69,4 @@ Acesse o registro completo de todas as viagens realizadas, incluindo distâncias
 - **Modo Escuro:** O sistema se adapta automaticamente às configurações do seu dispositivo.
 - **Responsividade:** Em dispositivos móveis, as tabelas podem ser deslizadas lateralmente para visualização completa.
 - **Alertas:** Fique atento ao ícone de sino no topo da tela para notificações importantes.
+- **Senha esquecida:** Entre em contato com o administrador do sistema para redefinição de senha.

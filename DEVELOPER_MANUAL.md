@@ -20,7 +20,7 @@ Este documento descreve a arquitetura, o stack tecnológico e as regras de negó
 - `/src/pages`: Páginas da aplicação (Dashboard, Login, DailyReport, etc.).
 - `/src/lib`: Configurações de bibliotecas externas (Supabase).
 - `/src/types.ts`: Definições de interfaces TypeScript.
-- `/src/utils.ts`: Funções utilitárias.
+- `/src/utils.ts`: Funções utilitárias e dados mock para seed.
 
 ---
 
@@ -76,6 +76,8 @@ Este documento descreve a arquitetura, o stack tecnológico e as regras de negó
 - **Níveis de Acesso:**
     - `Admin`: Acesso total (Dashboard, Relatórios, Gestão de Manutenção).
     - `Motorista`: Acesso restrito à Parte Diária e Perfil.
+- **Importante:** A interface `User` em `types.ts` não contém o campo `password`. Senhas nunca devem trafegar ou ser armazenadas no frontend.
+- **Cadastro:** A opção de escolher o papel 'Admin' no cadastro público deve ser restrita — apenas Admins existentes devem poder promover outros usuários.
 
 ---
 
@@ -91,3 +93,12 @@ Este documento descreve a arquitetura, o stack tecnológico e as regras de negó
 - **Responsividade:** Utilize sempre as classes utilitárias do Tailwind para garantir que tabelas e gráficos se adaptem a telas pequenas (ex: `overflow-x-auto`).
 - **Sincronização:** O estado da aplicação depende fortemente do `localStorage` (`fleet_user`) para persistência de sessão rápida, mas a fonte da verdade é sempre o Supabase.
 - **Alertas:** A lógica de alertas de manutenção no Dashboard e Sidebar deve ser mantida sincronizada com os status `pendente` das tabelas `maintenance_requests` e `maintenances`.
+- **Dados Mock:** `MOCK_VEHICLES`, `MOCK_PROVIDERS` e `MOCK_USERS` em `utils.ts` existem apenas para fins de seed do banco em ambiente de desenvolvimento. Não utilizar em lógica de produção.
+
+---
+
+## 7. Histórico de Correções
+
+| Data | Versão | Descrição |
+|---|---|---|
+| 2026-03-30 | 1.1.0 | Segurança: removidos campos `password` em texto puro dos dados mock (`MOCK_USERS`) e da interface `User` em `types.ts` |
