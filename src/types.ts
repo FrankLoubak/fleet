@@ -63,7 +63,6 @@ export interface User {
   name: string;
   email: string;
   cpf: string;
-  password?: string;
   role: 'Admin' | 'Motorista';
   avatar?: string;
   phone?: string;
