@@ -314,6 +314,17 @@ export default function Journeys() {
       const startTimeStr = `${formData.startDate}T${formData.startTime}`;
       const endTimeStr = formData.endDate && formData.endTime ? `${formData.endDate}T${formData.endTime}` : null;
       
+      // Validar se o horário de encerramento não é no futuro
+      if (endTimeStr) {
+        const now = new Date();
+        const selectedEnd = new Date(endTimeStr);
+        if (selectedEnd > now) {
+          alert('O horário de encerramento não pode ser superior ao horário atual.');
+          setLoading(false);
+          return;
+        }
+      }
+
       const journeyPayload = {
         user_id: formData.userId,
         vehicle_id: formData.vehicleId,
@@ -940,7 +951,7 @@ export default function Journeys() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 uppercase ml-1">Hora Início</label>
-                    <input type="time" required className="input-field" value={formData.startTime} onChange={(e) => setFormData({...formData, startTime: e.target.value})} />
+                    <input type="time" required className="input-field" value={formData.startTime} onChange={(e) => setFormData({...formData, startTime: e.target.value})} step="60" />
                   </div>
                 </div>
 
@@ -967,7 +978,7 @@ export default function Journeys() {
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase ml-1">Hora Fim</label>
-                        <input type="time" required className="input-field" value={formData.endTime} onChange={(e) => setFormData({...formData, endTime: e.target.value})} />
+                        <input type="time" required className="input-field" value={formData.endTime} onChange={(e) => setFormData({...formData, endTime: e.target.value})} step="60" />
                       </div>
                     </div>
                     <div className="space-y-1.5">

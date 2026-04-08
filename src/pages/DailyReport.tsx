@@ -16,7 +16,10 @@ export default function DailyReport() {
   
   // Form states
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [startTime, setStartTime] = useState('08:00');
+  const [startTime, setStartTime] = useState(() => {
+    const now = new Date();
+    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+  });
   const [startOdometer, setStartOdometer] = useState('');
   
   // Modal states
@@ -33,7 +36,10 @@ export default function DailyReport() {
   const [occupyingUser, setOccupyingUser] = useState<UserType | null>(null);
   const [endOdometer, setEndOdometer] = useState('');
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endTime, setEndTime] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+  const [endTime, setEndTime] = useState(() => {
+    const now = new Date();
+    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+  });
   const [loading, setLoading] = useState(false);
   const [maintenanceAlerts, setMaintenanceAlerts] = useState<any[]>([]);
 
@@ -328,6 +334,18 @@ export default function DailyReport() {
       return;
     }
 
+    // Validar se o horário de encerramento não é no futuro
+    const now = new Date();
+    const [hours, minutes] = endTime.split(':').map(Number);
+    const selectedEnd = new Date(endDate);
+    selectedEnd.setHours(hours, minutes, 0, 0);
+
+    if (selectedEnd > now) {
+      setErrorMessages(['O horário de encerramento não pode ser superior ao horário atual.']);
+      setIsGeneralErrorModalOpen(true);
+      return;
+    }
+
     setLoading(true);
     try {
       // 02 - Check for refuelings during this journey
@@ -438,6 +456,18 @@ export default function DailyReport() {
   const handleEndPreviousJourney = async () => {
     if (!endOdometer || Number(endOdometer) <= (previousJourney?.startOdometer || 0)) {
       setErrorMessages(['O KM final deve ser maior que o KM inicial.']);
+      setIsGeneralErrorModalOpen(true);
+      return;
+    }
+
+    // Validar se o horário de encerramento não é no futuro
+    const now = new Date();
+    const [hours, minutes] = endTime.split(':').map(Number);
+    const selectedEnd = new Date(endDate);
+    selectedEnd.setHours(hours, minutes, 0, 0);
+
+    if (selectedEnd > now) {
+      setErrorMessages(['O horário de encerramento não pode ser superior ao horário atual.']);
       setIsGeneralErrorModalOpen(true);
       return;
     }
@@ -735,6 +765,7 @@ export default function DailyReport() {
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
                     disabled={isJourneyOpen}
+                    step="60"
                   />
                 </div>
               </div>
@@ -812,7 +843,12 @@ export default function DailyReport() {
         <footer className="sticky bottom-20 z-10 bg-background-light dark:bg-background-dark border-t border-slate-200 dark:border-slate-800 p-4">
           <button 
             disabled={loading || (!isJourneyOpen && (!startOdometer || !selectedVehicle))}
-            onClick={isJourneyOpen ? () => setIsEndModalOpen(true) : handleStartJourney}
+            onClick={isJourneyOpen ? () => {
+              const now = new Date();
+              setEndDate(now.toISOString().split('T')[0]);
+              setEndTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
+              setIsEndModalOpen(true);
+            } : handleStartJourney}
             className={cn(
               "flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-white shadow-lg transition-all active:scale-[0.98] disabled:opacity-50",
               isJourneyOpen 
@@ -882,8 +918,8 @@ export default function DailyReport() {
         {/* End Journey Modal */}
         {isEndModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white">Encerrar Jornada</h3>
                   <button 
@@ -898,7 +934,7 @@ export default function DailyReport() {
                   Para finalizar sua jornada com o veículo <span className="font-bold text-slate-700 dark:text-slate-200">{vehicle?.model}</span>, informe os dados de encerramento.
                 </p>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Data Fim</label>
                     <div className="relative flex items-center">
@@ -920,6 +956,7 @@ export default function DailyReport() {
                         type="time"
                         value={endTime}
                         onChange={(e) => setEndTime(e.target.value)}
+                        step="60"
                       />
                     </div>
                   </div>
@@ -974,8 +1011,8 @@ export default function DailyReport() {
         {/* Previous Journey Found Modal */}
         {isPreviousJourneyModalOpen && previousJourney && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-            <div className="bg-white dark:bg-slate-900 w-full max-sm:max-w-xs max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 w-full max-sm:max-w-xs max-w-sm rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-bold text-red-600">Jornada em Aberto</h3>
                   <button 
@@ -1004,7 +1041,7 @@ export default function DailyReport() {
                   Por favor, informe os dados de encerramento para finalizar a jornada anterior antes de iniciar uma nova.
                 </p>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Data Fim</label>
                     <div className="relative flex items-center">
@@ -1026,6 +1063,7 @@ export default function DailyReport() {
                         type="time"
                         value={endTime}
                         onChange={(e) => setEndTime(e.target.value)}
+                        step="60"
                       />
                     </div>
                   </div>
