@@ -544,12 +544,12 @@ export default function Vehicles() {
                         <div className="flex flex-col">
                           <span className="text-sm font-bold dark:text-white">
                             {vehicle.vehicle_type === 'maquina' 
-                              ? `${(vehicle.current_hourmeter || 0).toLocaleString('pt-BR')} h`
-                              : `${(vehicle.current_odometer || 0).toLocaleString('pt-BR')} km`
+                              ? `${(vehicle.currentKm || 0).toLocaleString('pt-BR')} h`
+                              : `${(vehicle.currentKm || 0).toLocaleString('pt-BR')} km`
                             }
                           </span>
                           <span className="text-[10px] text-slate-400 uppercase font-bold">
-                            {vehicle.vehicle_type === 'maquina' ? 'Horímetro Atual' : 'Odômetro Atual'}
+                            {vehicle.vehicle_type === 'maquina' ? 'Horímetro (Última Jornada)' : 'Odômetro (Última Jornada)'}
                           </span>
                         </div>
                       </td>
@@ -632,12 +632,12 @@ export default function Vehicles() {
                   <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl mb-6">
                     <div>
                       <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">
-                        {vehicle.vehicle_type === 'maquina' ? 'Horímetro' : 'Odômetro'}
+                        {vehicle.vehicle_type === 'maquina' ? 'Horímetro (Jornada)' : 'Odômetro (Jornada)'}
                       </p>
                       <p className="text-sm font-bold dark:text-white">
                         {vehicle.vehicle_type === 'maquina' 
-                          ? `${(vehicle.current_hourmeter || 0).toLocaleString('pt-BR')} h`
-                          : `${(vehicle.current_odometer || 0).toLocaleString('pt-BR')} km`
+                          ? `${(vehicle.currentKm || 0).toLocaleString('pt-BR')} h`
+                          : `${(vehicle.currentKm || 0).toLocaleString('pt-BR')} km`
                         }
                       </p>
                     </div>

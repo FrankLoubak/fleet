@@ -68,11 +68,6 @@ export default function Refueling() {
         };
         setActiveJourney(journey);
         
-        // Set default odometer to journey start odometer
-        if (journey.startOdometer) {
-          setOdometer(journey.startOdometer.toString());
-        }
-
         // Set default date to journey start date
         if (journey.startTime) {
           setDate(journey.startTime.split('T')[0]);
