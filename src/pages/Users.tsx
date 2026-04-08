@@ -32,9 +32,9 @@ export default function Users() {
   }, []);
 
   const filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.cpf.includes(searchTerm)
+    (user.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (user.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (user.cpf || '').includes(searchTerm)
   );
 
   return (
@@ -122,7 +122,7 @@ export default function Users() {
                     </div>
                     <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                       <Shield size={16} className="text-slate-400" />
-                      <span>CPF: {user.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}</span>
+                      <span>CPF: {user.cpf ? user.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : 'Não informado'}</span>
                     </div>
                     {user.phone && (
                       <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">

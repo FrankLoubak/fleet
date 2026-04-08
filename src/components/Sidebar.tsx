@@ -105,8 +105,9 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
       <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          if (item.adminOnly && currentUser.role !== 'Admin' && currentUser.role !== 'Root') return null;
-          if (item.rootOnly && currentUser.role !== 'Root') return null;
+          const userRole = currentUser?.role;
+          if (item.adminOnly && userRole !== 'Admin' && userRole !== 'Root') return null;
+          if (item.rootOnly && userRole !== 'Root') return null;
           
           const isActive = location.pathname === item.path;
           
@@ -139,8 +140,8 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                         referrerPolicy="no-referrer"
                       />
                       <div>
-                        <p className="font-bold text-slate-900 dark:text-white text-lg leading-tight">{currentUser.name}</p>
-                        <p className="text-xs text-blue-600 font-bold uppercase tracking-wider mt-1">{currentUser.role}</p>
+                        <p className="font-bold text-slate-900 dark:text-white text-lg leading-tight">{currentUser?.name || 'Usuário'}</p>
+                        <p className="text-xs text-blue-600 font-bold uppercase tracking-wider mt-1">{currentUser?.role || 'Motorista'}</p>
                       </div>
                     </div>
                     
@@ -246,8 +247,8 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
             />
           </div>
           <div className="overflow-hidden flex-1">
-            <p className="text-[14px] font-bold truncate dark:text-white leading-tight">{currentUser.name}</p>
-            <p className="text-[12px] text-slate-500 font-medium">{currentUser.role}</p>
+            <p className="text-[14px] font-bold truncate dark:text-white leading-tight">{currentUser?.name || 'Usuário'}</p>
+            <p className="text-[12px] text-slate-500 font-medium">{currentUser?.role || 'Motorista'}</p>
           </div>
           <button 
             onClick={handleLogout}

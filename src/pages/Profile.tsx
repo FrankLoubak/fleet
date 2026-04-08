@@ -60,7 +60,7 @@ export default function Profile() {
                     <div>
                       <p className="text-[10px] text-slate-400 font-bold uppercase">CPF</p>
                       <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                        {currentUser.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}
+                        {currentUser.cpf ? currentUser.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : 'Não informado'}
                       </p>
                     </div>
                   </div>
