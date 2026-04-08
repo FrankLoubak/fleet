@@ -64,7 +64,7 @@ export interface User {
   email: string;
   cpf: string;
   password?: string;
-  role: 'Admin' | 'Motorista';
+  role: 'Root' | 'Admin' | 'Motorista';
   avatar?: string;
   phone?: string;
 }

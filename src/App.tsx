@@ -10,6 +10,8 @@ import Vehicles from './pages/Vehicles';
 import Journeys from './pages/Journeys';
 import MaintenanceList from './pages/MaintenanceList';
 import TimeBank from './pages/TimeBank';
+import Users from './pages/Users';
+import Profile from './pages/Profile';
 
 export default function App() {
   return (
@@ -25,6 +27,8 @@ export default function App() {
         <Route path="/daily-report" element={<DailyReport />} />
         <Route path="/request-maintenance" element={<RequestMaintenance />} />
         <Route path="/time-bank" element={<TimeBank />} />
+        <Route path="/users" element={<Users />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>

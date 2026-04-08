@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Truck, Car, BarChart3, User, LogOut, Mail, Phone, Shield, ChevronDown, Play, Clock, Wrench, X, AlertCircle } from 'lucide-react';
+import { Truck, Car, BarChart3, User, LogOut, Mail, Phone, Shield, ChevronDown, Play, Clock, Wrench, X, AlertCircle, Users } from 'lucide-react';
 import { cn } from '../utils';
 import { User as UserType } from '../types';
 import { supabase } from '../lib/supabase';
@@ -12,6 +12,7 @@ const navItems = [
   { icon: Clock, label: 'Jornadas', path: '/journeys', adminOnly: true },
   { icon: Clock, label: 'Banco de Horas', path: '/time-bank' },
   { icon: BarChart3, label: 'Relatórios', path: '/dashboard', adminOnly: true },
+  { icon: Users, label: 'Usuários', path: '/users', rootOnly: true },
   { icon: User, label: 'Perfil', path: '/profile' },
 ];
 
@@ -20,7 +21,8 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [alertCount, setAlertCount] = useState(0);
+  const [maintenanceCount, setMaintenanceCount] = useState(0);
+  const [journeyCount, setJourneyCount] = useState(0);
 
   useEffect(() => {
     const userJson = localStorage.getItem('fleet_user');
@@ -32,11 +34,9 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
   useEffect(() => {
     const fetchAlerts = async () => {
-      if (!currentUser || currentUser.role !== 'Admin') return;
+      if (!currentUser || (currentUser.role !== 'Admin' && currentUser.role !== 'Root')) return;
       
       try {
-        const today = new Date().toISOString().split('T')[0];
-        
         const { count: pendingReqCount } = await supabase
           .from('maintenance_requests')
           .select('*', { count: 'exact', head: true })
@@ -53,7 +53,8 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
           .eq('status', 'encerrada')
           .eq('validation_status', 'pendente');
           
-        setAlertCount((pendingReqCount || 0) + (overdueMainCount || 0) + (pendingJourneysCount || 0));
+        setMaintenanceCount((pendingReqCount || 0) + (overdueMainCount || 0));
+        setJourneyCount(pendingJourneysCount || 0);
       } catch (err) {
         console.error('Error fetching alerts for sidebar:', err);
       }
@@ -90,10 +91,10 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     <>
       <div className="p-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="bg-primary rounded-lg p-2 flex items-center justify-center">
+          <div className="bg-blue-600 rounded-xl p-2.5 flex items-center justify-center shadow-lg shadow-blue-200 dark:shadow-none">
             <Truck className="text-white w-6 h-6" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight dark:text-white">Gestor Frota</h1>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Gestor Frota</h1>
         </div>
         {onClose && (
           <button onClick={onClose} className="md:hidden p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
@@ -102,9 +103,10 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
         )}
       </div>
 
-      <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
+      <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          if (item.adminOnly && currentUser.role !== 'Admin') return null;
+          if (item.adminOnly && currentUser.role !== 'Admin' && currentUser.role !== 'Root') return null;
+          if (item.rootOnly && currentUser.role !== 'Root') return null;
           
           const isActive = location.pathname === item.path;
           
@@ -114,87 +116,78 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                 <button
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
                   className={cn(
-                    "w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-medium transition-colors",
+                    "w-full flex items-center justify-between px-3 py-3 rounded-xl font-medium transition-all duration-200",
                     isProfileOpen || isActive
-                      ? "bg-primary text-white"
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-200 dark:shadow-none"
                       : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                   )}
                 >
-                  <div className="flex items-center gap-3">
-                    <item.icon size={20} />
-                    <span>{item.label}</span>
+                  <div className="flex items-center gap-4">
+                    <item.icon size={22} className={cn(isActive || isProfileOpen ? "text-white" : "text-slate-500")} />
+                    <span className="text-[15px]">{item.label}</span>
                   </div>
-                  <ChevronDown size={16} className={cn("transition-transform", isProfileOpen && "rotate-180")} />
+                  <ChevronDown size={16} className={cn("transition-transform duration-200", isProfileOpen && "rotate-180")} />
                 </button>
 
                 {isProfileOpen && currentUser && (
-                  <div className="absolute left-full ml-2 top-0 w-72 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 p-4 z-50 animate-in slide-in-from-left-2 duration-200">
-                    <div className="flex items-center gap-4 mb-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+                  <div className="absolute left-full ml-2 top-0 w-72 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-5 z-50 animate-in slide-in-from-left-2 duration-200">
+                    <div className="flex items-center gap-4 mb-5 pb-5 border-b border-slate-100 dark:border-slate-800">
                       <img
                         alt="Profile"
-                        className="w-12 h-12 rounded-full border-2 border-primary/20 object-cover"
-                        src={currentUser.avatar}
+                        className="w-14 h-14 rounded-full border-2 border-blue-100 object-cover"
+                        src={currentUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`}
                         referrerPolicy="no-referrer"
                       />
                       <div>
-                        <p className="font-bold text-slate-900 dark:text-white">{currentUser.name}</p>
-                        <p className="text-xs text-primary font-bold uppercase tracking-wider">{currentUser.role}</p>
+                        <p className="font-bold text-slate-900 dark:text-white text-lg leading-tight">{currentUser.name}</p>
+                        <p className="text-xs text-blue-600 font-bold uppercase tracking-wider mt-1">{currentUser.role}</p>
                       </div>
                     </div>
                     
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       <div className="flex items-center gap-3 text-sm">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">
-                          <Mail size={14} />
+                        <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">
+                          <Mail size={16} />
                         </div>
                         <div className="overflow-hidden">
-                          <p className="text-[10px] text-slate-400 uppercase font-bold">E-mail</p>
-                          <p className="text-slate-600 dark:text-slate-300 truncate">{currentUser.email}</p>
+                          <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">E-mail</p>
+                          <p className="text-slate-600 dark:text-slate-300 truncate font-medium">{currentUser.email}</p>
                         </div>
                       </div>
                       
                       <div className="flex items-center gap-3 text-sm">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">
-                          <Phone size={14} />
+                        <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">
+                          <Phone size={16} />
                         </div>
                         <div>
-                          <p className="text-[10px] text-slate-400 uppercase font-bold">Telefone</p>
-                          <p className="text-slate-600 dark:text-slate-300">{currentUser.phone || '(11) 99999-9999'}</p>
+                          <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Telefone</p>
+                          <p className="text-slate-600 dark:text-slate-300 font-medium">{currentUser.phone || '(11) 99999-9999'}</p>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-3 text-sm">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">
-                          <Shield size={14} />
+                        <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">
+                          <Shield size={16} />
                         </div>
                         <div>
-                          <p className="text-[10px] text-slate-400 uppercase font-bold">Nível de Acesso</p>
-                          <p className="text-slate-600 dark:text-slate-300">{currentUser.role === 'Admin' ? 'Administrador' : 'Motorista'}</p>
+                          <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Nível de Acesso</p>
+                          <p className="text-slate-600 dark:text-slate-300 font-medium">
+                            {currentUser.role === 'Root' ? 'Super Usuário' : currentUser.role === 'Admin' ? 'Administrador' : 'Motorista'}
+                          </p>
                         </div>
                       </div>
-
-                      {alertCount > 0 && (
-                        <div className="flex items-center gap-3 text-sm p-2 bg-orange-50 dark:bg-orange-900/10 rounded-lg border border-orange-100 dark:border-orange-900/20">
-                          <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600">
-                            <AlertCircle size={14} />
-                          </div>
-                          <div>
-                            <p className="text-[10px] text-orange-500 uppercase font-bold">Alertas Ativos</p>
-                            <p className="text-orange-700 dark:text-orange-400 font-bold">{alertCount} pendências</p>
-                          </div>
-                        </div>
-                      )}
                     </div>
 
-                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <div className="mt-5 pt-5 border-t border-slate-100 dark:border-slate-800">
                       <button 
                         onClick={() => {
                           navigate('/profile');
+                          setIsProfileOpen(false);
                           if (onClose) onClose();
                         }}
-                        className="w-full py-2 text-xs font-bold text-primary hover:bg-primary/5 rounded-lg transition-colors"
+                        className="w-full py-2.5 text-sm font-bold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/10 rounded-xl transition-all duration-200"
                       >
-                        Editar Perfil Completo
+                        Ver Perfil Completo
                       </button>
                     </div>
                   </div>
@@ -211,30 +204,30 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                 if (onClose) onClose();
               }}
               className={cn(
-                "flex items-center justify-between px-3 py-2.5 rounded-lg font-medium transition-colors",
+                "flex items-center justify-between px-3 py-3 rounded-xl font-medium transition-all duration-200",
                 isActive
-                  ? "bg-primary text-white"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-200 dark:shadow-none"
                   : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
               )}
             >
-              <div className="flex items-center gap-3">
-                <item.icon size={20} />
-                <span>{item.label}</span>
+              <div className="flex items-center gap-4">
+                <item.icon size={22} className={cn(isActive ? "text-white" : "text-slate-500")} />
+                <span className="text-[15px]">{item.label}</span>
               </div>
-              {item.label === 'Manutenções' && alertCount > 0 && (
+              {item.label === 'Manutenções' && maintenanceCount > 0 && (
                 <span className={cn(
-                  "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
-                  isActive ? "bg-white text-primary" : "bg-red-500 text-white"
+                  "flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold",
+                  isActive ? "bg-white text-blue-600" : "bg-red-500 text-white"
                 )}>
-                  {alertCount}
+                  {maintenanceCount}
                 </span>
               )}
-              {item.label === 'Jornadas' && alertCount > 0 && (
+              {item.label === 'Jornadas' && journeyCount > 0 && (
                 <span className={cn(
-                  "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
-                  isActive ? "bg-white text-primary" : "bg-amber-500 text-white"
+                  "flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold",
+                  isActive ? "bg-white text-blue-600" : "bg-orange-500 text-white"
                 )}>
-                  {alertCount}
+                  {journeyCount}
                 </span>
               )}
             </Link>
@@ -244,22 +237,24 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
       <div className="p-4 border-t border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-3 px-2">
-          <img
-            alt="Profile"
-            className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 object-cover"
-            src={currentUser.avatar}
-            referrerPolicy="no-referrer"
-          />
-          <div className="overflow-hidden">
-            <p className="text-sm font-semibold truncate dark:text-white">{currentUser.name}</p>
-            <p className="text-xs text-slate-500">{currentUser.role}</p>
+          <div className="relative">
+            <img
+              alt="Profile"
+              className="w-11 h-11 rounded-full border-2 border-slate-100 dark:border-slate-700 object-cover"
+              src={currentUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`}
+              referrerPolicy="no-referrer"
+            />
+          </div>
+          <div className="overflow-hidden flex-1">
+            <p className="text-[14px] font-bold truncate dark:text-white leading-tight">{currentUser.name}</p>
+            <p className="text-[12px] text-slate-500 font-medium">{currentUser.role}</p>
           </div>
           <button 
             onClick={handleLogout}
-            className="ml-auto text-slate-400 hover:text-red-500 transition-colors"
+            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-all"
             title="Sair"
           >
-            <LogOut size={18} />
+            <LogOut size={20} />
           </button>
         </div>
       </div>
@@ -278,14 +273,14 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
       {/* Mobile Sidebar Drawer */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 w-64 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col z-50 transition-transform duration-300 md:hidden",
+        "fixed inset-y-0 left-0 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col z-50 transition-transform duration-300 md:hidden",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         {SidebarContent}
       </aside>
 
       {/* Desktop Sidebar */}
-      <aside className="w-64 flex-shrink-0 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col hidden md:flex">
+      <aside className="w-64 flex-shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col hidden md:flex">
         {SidebarContent}
       </aside>
     </>
