@@ -63,10 +63,10 @@ export interface User {
   name: string;
   email: string;
   cpf: string;
-  role: 'Root' | 'Admin' | 'Operador';
+  password?: string;
+  role: 'Admin' | 'Motorista';
   avatar?: string;
   phone?: string;
-  invited_by?: string;
 }
 
 export interface Journey {

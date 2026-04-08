@@ -1,45 +1,20 @@
-# FleetManager
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
 
-Sistema web de gestão inteligente de frotas, com controle de jornadas, abastecimentos e manutenções.
+# Run and deploy your AI Studio app
 
-## Stack
+This contains everything you need to run your app locally.
 
-- **Frontend:** React 18 + TypeScript + Vite
-- **Estilo:** Tailwind CSS + Lucide React
-- **Gráficos:** Recharts
-- **Backend/BD:** Supabase (PostgreSQL + Auth)
+View your app in AI Studio: https://ai.studio/apps/dbe7258d-44ee-4c84-9c04-26eb1ed5702c
 
-## Como rodar localmente
+## Run Locally
 
-**Pré-requisitos:** Node.js
+**Prerequisites:**  Node.js
 
-1. Instalar dependências:
-   ```bash
-   npm install
-   ```
 
-2. Criar o arquivo `.env` na raiz com as variáveis:
-   ```
-   VITE_SUPABASE_URL=sua_url_aqui
-   VITE_SUPABASE_ANON_KEY=sua_chave_aqui
-   ```
-
-3. Iniciar o servidor de desenvolvimento:
-   ```bash
-   npm run dev
-   ```
-
-## Perfis de acesso
-
-| Perfil | Acesso |
-|---|---|
-| **Admin** | Dashboard, relatórios, frota, manutenções, histórico de jornadas |
-| **Motorista** | Parte diária (jornada, abastecimento, solicitação de manutenção) |
-
-## Scripts disponíveis
-
-| Comando | Ação |
-|---|---|
-| `npm run dev` | Inicia em modo desenvolvimento |
-| `npm run build` | Gera build de produção na pasta `/dist` |
-| `npm run lint` | Verifica erros de TypeScript |
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`

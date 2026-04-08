@@ -123,6 +123,12 @@ export default function Refueling() {
     const kmValue = Number(odometer);
     const qtyValue = Number(quantity);
 
+    if (!activeJourney) {
+      setErrorMessages(['Você precisa estar em uma jornada ativa para registrar um abastecimento.']);
+      setIsErrorModalOpen(true);
+      return;
+    }
+
     if (!odometer || !quantity) {
       errors.push('Por favor, preencha o KM atual e a quantidade de litros.');
     }
@@ -266,6 +272,12 @@ export default function Refueling() {
   }, [isHistoryModalOpen, activeJourney?.vehicleId, modalStartDate, modalEndDate]);
 
   const handleConfirmSave = async () => {
+    if (!activeJourney || !currentUser) {
+      setErrorMessages(['Sessão ou jornada inválida. Por favor, tente recarregar a página.']);
+      setIsErrorModalOpen(true);
+      return;
+    }
+
     setLoading(true);
     try {
       const refuelingPayload = {
@@ -273,8 +285,8 @@ export default function Refueling() {
         odometer: Number(odometer),
         quantity: Number(quantity),
         fuel_type: fuelType,
-        vehicle_id: activeJourney?.vehicleId || '',
-        user_id: currentUser?.id || '',
+        vehicle_id: activeJourney.vehicleId,
+        user_id: currentUser.id,
         location: location
       };
 
@@ -288,7 +300,7 @@ export default function Refueling() {
       const odoNum = Number(odometer);
       const currentVal = vehicle?.vehicle_type === 'maquina' ? (vehicle.current_hourmeter || 0) : (vehicle?.current_odometer || vehicle?.lastOdometer || 0);
       
-      if (odoNum > currentVal) {
+      if (odoNum > currentVal && activeJourney.vehicleId) {
         const updatePayload: any = { last_odometer: odoNum };
         if (vehicle?.vehicle_type === 'maquina') {
           updatePayload.current_hourmeter = odoNum;
@@ -299,7 +311,7 @@ export default function Refueling() {
         const { error: vError } = await supabase
           .from('vehicles')
           .update(updatePayload)
-          .eq('id', activeJourney?.vehicleId);
+          .eq('id', activeJourney.vehicleId);
         if (vError) console.error('Error updating vehicle odometer/hourmeter:', vError);
       }
 
@@ -307,7 +319,8 @@ export default function Refueling() {
       setIsSuccessModalOpen(true);
     } catch (err: any) {
       console.error('Error saving refueling:', err);
-      setErrorMessages([err.message || 'Não foi possível salvar o registro de abastecimento. Verifique sua conexão e tente novamente.']);
+      const message = err?.message || (typeof err === 'string' ? err : 'Não foi possível salvar o registro de abastecimento. Verifique sua conexão e tente novamente.');
+      setErrorMessages([message]);
       setIsErrorModalOpen(true);
     } finally {
       setLoading(false);

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Truck, Car, BarChart3, User, LogOut, Mail, Phone, Shield, ChevronDown, Play, Clock, Wrench, X, AlertCircle, Users } from 'lucide-react';
+import { Truck, Car, BarChart3, User, LogOut, Mail, Phone, Shield, ChevronDown, Play, Clock, Wrench, X, AlertCircle } from 'lucide-react';
 import { cn } from '../utils';
 import { User as UserType } from '../types';
 import { supabase } from '../lib/supabase';
@@ -12,7 +12,6 @@ const navItems = [
   { icon: Clock, label: 'Jornadas', path: '/journeys', adminOnly: true },
   { icon: Clock, label: 'Banco de Horas', path: '/time-bank' },
   { icon: BarChart3, label: 'Relatórios', path: '/dashboard', adminOnly: true },
-  { icon: Users, label: 'Usuários', path: '/users', adminOnly: true },
   { icon: User, label: 'Perfil', path: '/profile' },
 ];
 
@@ -33,7 +32,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
   useEffect(() => {
     const fetchAlerts = async () => {
-      if (!currentUser || (currentUser.role !== 'Admin' && currentUser.role !== 'Root')) return;
+      if (!currentUser || currentUser.role !== 'Admin') return;
       
       try {
         const today = new Date().toISOString().split('T')[0];
@@ -105,7 +104,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
       <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
         {navItems.map((item) => {
-          if (item.adminOnly && currentUser.role !== 'Admin' && currentUser.role !== 'Root') return null;
+          if (item.adminOnly && currentUser.role !== 'Admin') return null;
           
           const isActive = location.pathname === item.path;
           
@@ -170,7 +169,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                         </div>
                         <div>
                           <p className="text-[10px] text-slate-400 uppercase font-bold">Nível de Acesso</p>
-                          <p className="text-slate-600 dark:text-slate-300">{currentUser.role === 'Root' ? 'Root' : currentUser.role === 'Admin' ? 'Administrador' : 'Operador'}</p>
+                          <p className="text-slate-600 dark:text-slate-300">{currentUser.role === 'Admin' ? 'Administrador' : 'Motorista'}</p>
                         </div>
                       </div>
 

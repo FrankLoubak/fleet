@@ -366,7 +366,7 @@ export default function Dashboard() {
       }
 
       const user = JSON.parse(userJson) as UserType;
-      if (user.role === 'Operador') {
+      if (user.role === 'Motorista') {
         navigate('/daily-report');
         return;
       }
