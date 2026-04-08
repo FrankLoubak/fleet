@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users as UsersIcon, UserPlus, Search, Shield, Mail, Phone, MoreVertical, Edit2, Trash2 } from 'lucide-react';
+import { Users as UsersIcon, UserPlus, Search, Shield, Mail, Phone, MoreVertical, Edit2, Trash2, Share2, Check, Copy } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { User } from '../types';
 import { supabase } from '../lib/supabase';
@@ -10,6 +10,16 @@ export default function Users() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const inviteLink = window.location.origin;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(inviteLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -51,11 +61,65 @@ export default function Users() {
               </h1>
               <p className="text-slate-500 dark:text-slate-400 mt-1">Gerencie motoristas, administradores e permissões do sistema.</p>
             </div>
-            <button className="btn-primary flex items-center justify-center gap-2 px-6">
-              <UserPlus size={20} />
-              <span>Novo Usuário</span>
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button 
+                onClick={() => setShowInviteModal(true)}
+                className="flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/10 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all border border-blue-100 dark:border-blue-900/30"
+              >
+                <Share2 size={18} />
+                <span>Gerar Convite</span>
+              </button>
+              <button className="btn-primary flex items-center justify-center gap-2 px-6">
+                <UserPlus size={20} />
+                <span>Novo Usuário</span>
+              </button>
+            </div>
           </div>
+
+          {/* Invite Modal */}
+          {showInviteModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="p-8">
+                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600 mb-6">
+                    <Share2 size={32} />
+                  </div>
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Convidar Usuário</h3>
+                  <p className="text-slate-500 dark:text-slate-400 mb-8">
+                    Compartilhe o link abaixo para que o novo usuário possa acessar e instalar o aplicativo Gestor Frota.
+                  </p>
+
+                  <div className="relative mb-8">
+                    <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 pr-12 font-mono text-sm text-slate-600 dark:text-slate-300 break-all">
+                      {inviteLink}
+                    </div>
+                    <button 
+                      onClick={handleCopyLink}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                    >
+                      {copied ? <Check size={20} className="text-green-500" /> : <Copy size={20} />}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <button 
+                      onClick={handleCopyLink}
+                      className="btn-primary w-full py-3 flex items-center justify-center gap-2"
+                    >
+                      {copied ? <Check size={20} /> : <Copy size={20} />}
+                      <span>{copied ? 'Link Copiado!' : 'Copiar Link de Convite'}</span>
+                    </button>
+                    <button 
+                      onClick={() => setShowInviteModal(false)}
+                      className="w-full py-3 text-sm font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="card p-4 mb-6">
             <div className="relative">
