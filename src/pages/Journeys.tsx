@@ -131,7 +131,10 @@ export default function Journeys() {
     startOdometer: 0,
     endOdometer: 0,
     status: 'encerrada' as 'aberta' | 'encerrada',
-    observations: ''
+    observations: '',
+    startLocation: '',
+    destination: '',
+    endLocation: ''
   });
 
   useEffect(() => {
@@ -186,6 +189,9 @@ export default function Journeys() {
         distanceTraveled: j.distance_traveled,
         status: j.status,
         observations: j.observations,
+        start_location: j.start_location,
+        destination: j.destination,
+        end_location: j.end_location,
         validation_status: j.validation_status,
         validated_by: j.validated_by
       }));
@@ -275,7 +281,10 @@ export default function Journeys() {
         startOdometer: journey.startOdometer,
         endOdometer: journey.endOdometer || 0,
         status: journey.status,
-        observations: journey.observations || ''
+        observations: journey.observations || '',
+        startLocation: journey.start_location || '',
+        destination: journey.destination || '',
+        endLocation: journey.end_location || ''
       });
     } else {
       setEditingJourney(null);
@@ -289,7 +298,10 @@ export default function Journeys() {
         startOdometer: 0,
         endOdometer: 0,
         status: 'aberta',
-        observations: ''
+        observations: '',
+        startLocation: '',
+        destination: '',
+        endLocation: ''
       });
     }
     setIsModalOpen(true);
@@ -336,7 +348,10 @@ export default function Journeys() {
         end_odometer: formData.status === 'encerrada' ? Number(formData.endOdometer) : null,
         distance_traveled: formData.status === 'encerrada' ? Number(formData.endOdometer) - Number(formData.startOdometer) : null,
         status: formData.status,
-        observations: formData.observations
+        observations: formData.observations,
+        start_location: formData.startLocation,
+        destination: formData.destination,
+        end_location: formData.endLocation
       };
 
       if (editingJourney) {
@@ -741,6 +756,7 @@ export default function Journeys() {
                   <th className="px-6 py-4">Veículo</th>
                   <th className="px-6 py-4">Motorista</th>
                   <th className="px-6 py-4">KM (Início/Fim)</th>
+                  <th className="px-6 py-4">Deslocamento</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4">Duração / Excedente</th>
                   <th className="px-6 py-4">Validação</th>
@@ -785,6 +801,19 @@ export default function Journeys() {
                           <span>{journey.startOdometer.toLocaleString()}</span>
                           <ArrowRight size={14} className="text-slate-300" />
                           <span>{journey.endOdometer ? journey.endOdometer.toLocaleString() : '---'}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col max-w-[200px]">
+                          <p className="text-[10px] text-slate-500 truncate" title={journey.start_location}>
+                            <span className="font-bold">Início:</span> {journey.start_location || '---'}
+                          </p>
+                          <p className="text-[10px] text-slate-500 truncate" title={journey.destination}>
+                            <span className="font-bold">Destino:</span> {journey.destination || '---'}
+                          </p>
+                          <p className="text-[10px] text-slate-500 truncate" title={journey.end_location}>
+                            <span className="font-bold">Fim:</span> {journey.end_location || '---'}
+                          </p>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -991,6 +1020,24 @@ export default function Journeys() {
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500 uppercase ml-1">Observações</label>
                   <textarea className="input-field min-h-[80px] py-2" value={formData.observations} onChange={(e) => setFormData({...formData, observations: e.target.value})} />
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl space-y-4">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Deslocamento</h4>
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Local de Início</label>
+                      <input type="text" className="input-field h-10 text-sm" value={formData.startLocation} onChange={(e) => setFormData({...formData, startLocation: e.target.value})} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Destino</label>
+                      <input type="text" className="input-field h-10 text-sm" value={formData.destination} onChange={(e) => setFormData({...formData, destination: e.target.value})} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Local Encerramento</label>
+                      <input type="text" className="input-field h-10 text-sm" value={formData.endLocation} onChange={(e) => setFormData({...formData, endLocation: e.target.value})} />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="pt-4 flex gap-3">

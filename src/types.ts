@@ -82,6 +82,9 @@ export interface Journey {
   distanceTraveled?: number;
   status: 'aberta' | 'encerrada';
   observations?: string;
+  start_location?: string;
+  destination?: string;
+  end_location?: string;
   validation_status?: 'pendente' | 'validada';
   validated_by?: string;
 }

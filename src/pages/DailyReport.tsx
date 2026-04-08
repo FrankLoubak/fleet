@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Clock, Zap, Fuel, Wrench, Play, ClipboardList, Truck, Power, User, LogOut, CheckCircle2, X, BarChart3, History, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Zap, Fuel, Wrench, Play, ClipboardList, Truck, Power, User, LogOut, CheckCircle2, X, BarChart3, History, Loader2, AlertCircle, ChevronRight, MapPin } from 'lucide-react';
 import { cn } from '../utils';
 import { User as UserType, Journey, Vehicle } from '../types';
 import { supabase } from '../lib/supabase';
@@ -42,6 +42,12 @@ export default function DailyReport() {
   });
   const [loading, setLoading] = useState(false);
   const [maintenanceAlerts, setMaintenanceAlerts] = useState<any[]>([]);
+
+  // Displacement states
+  const [isDisplacementModalOpen, setIsDisplacementModalOpen] = useState(false);
+  const [startLocation, setStartLocation] = useState('');
+  const [destination, setDestination] = useState('');
+  const [endLocation, setEndLocation] = useState('');
 
   const isJourneyOpen = currentJourney?.status === 'aberta';
 
@@ -118,6 +124,11 @@ export default function DailyReport() {
         setStartOdometer(journey.startOdometer.toString());
         setStartTime(journey.startTime.split('T')[1].substring(0, 5));
         setStartDate(journey.startTime.split('T')[0]);
+        
+        // Load displacement data
+        setStartLocation(j.start_location || '');
+        setDestination(j.destination || '');
+        setEndLocation(j.end_location || '');
       }
 
       // Fetch time bank total
@@ -328,6 +339,13 @@ export default function DailyReport() {
     const endOdom = Number(endOdometer);
     const startOdom = currentJourney?.startOdometer || 0;
 
+    // Displacement validation
+    if (!startLocation || !destination || !endLocation) {
+      setErrorMessages(['Por favor, preencha todos os campos de deslocamento antes de encerrar a jornada.']);
+      setIsGeneralErrorModalOpen(true);
+      return;
+    }
+
     if (!endOdometer || endOdom <= startOdom) {
       setErrorMessages(['O KM final deve ser maior que o KM inicial.']);
       setIsGeneralErrorModalOpen(true);
@@ -411,7 +429,10 @@ export default function DailyReport() {
           end_odometer: endOdom,
           distance_traveled: dist,
           status: 'encerrada',
-          validation_status: validationStatus
+          validation_status: validationStatus,
+          start_location: startLocation,
+          destination: destination,
+          end_location: endLocation
         })
         .eq('id', currentJourney!.id);
 
@@ -438,6 +459,9 @@ export default function DailyReport() {
       setEndOdometer('');
       setSelectedVehicle('');
       setStartOdometer('');
+      setStartLocation('');
+      setDestination('');
+      setEndLocation('');
       
       if (needsValidation) {
         setIsValidationAlertModalOpen(true);
@@ -509,6 +533,9 @@ export default function DailyReport() {
       setPreviousJourney(null);
       setIsPreviousJourneyModalOpen(false);
       setEndOdometer('');
+      setStartLocation('');
+      setDestination('');
+      setEndLocation('');
       
       setIsSuccessModalOpen(true);
     } catch (err: any) {
@@ -799,6 +826,19 @@ export default function DailyReport() {
               </div>
             )}
             <button 
+              onClick={() => setIsDisplacementModalOpen(true)}
+              disabled={!isJourneyOpen}
+              className={cn(
+                "w-full h-14 border-2 border-slate-200 dark:border-slate-800 font-bold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98]",
+                isJourneyOpen 
+                  ? "hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200" 
+                  : "opacity-50 cursor-not-allowed text-slate-400"
+              )}
+            >
+              <MapPin className={isJourneyOpen ? "text-primary" : "text-slate-400"} size={20} />
+              <span>Deslocamento</span>
+            </button>
+            <button 
               onClick={() => navigate('/refueling')}
               disabled={!isJourneyOpen}
               className={cn(
@@ -914,6 +954,92 @@ export default function DailyReport() {
             <p className="text-[9px] font-bold uppercase tracking-tight text-center">Sair</p>
           </button>
         </nav>
+
+        {/* Displacement Modal */}
+        {isDisplacementModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">Dados de Deslocamento</h3>
+                  <button 
+                    onClick={() => setIsDisplacementModalOpen(false)}
+                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Informe os locais de início, destino e encerramento do seu deslocamento.
+                </p>
+
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">01 - Local de Início</label>
+                    <input
+                      className="input-field"
+                      placeholder="Ex: Garagem Central"
+                      type="text"
+                      value={startLocation}
+                      onChange={(e) => setStartLocation(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">02 - Destino</label>
+                    <input
+                      className="input-field"
+                      placeholder="Ex: Obra Setor Norte"
+                      type="text"
+                      value={destination}
+                      onChange={(e) => setDestination(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">03 - Local Encerramento</label>
+                    <input
+                      className="input-field"
+                      placeholder="Ex: Garagem Central"
+                      type="text"
+                      value={endLocation}
+                      onChange={(e) => setEndLocation(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <button 
+                    onClick={async () => {
+                      if (currentJourney) {
+                        setLoading(true);
+                        const { error } = await supabase
+                          .from('journeys')
+                          .update({
+                            start_location: startLocation,
+                            destination: destination,
+                            end_location: endLocation
+                          })
+                          .eq('id', currentJourney.id);
+                        
+                        setLoading(false);
+                        if (error) {
+                          alert('Erro ao salvar deslocamento.');
+                        } else {
+                          setIsDisplacementModalOpen(false);
+                        }
+                      } else {
+                        setIsDisplacementModalOpen(false);
+                      }
+                    }}
+                    className="btn-primary w-full h-12"
+                  >
+                    Salvar Deslocamento
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* End Journey Modal */}
         {isEndModalOpen && (
