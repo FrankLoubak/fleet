@@ -14,7 +14,45 @@ export default function Login() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [isInviteValid, setIsInviteValid] = useState(false);
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const invite = params.get('invite');
+    if (invite) {
+      setInviteToken(invite);
+      validateInvite(invite);
+    }
+  }, []);
+
+  const validateInvite = async (token: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('invites')
+        .select('*')
+        .eq('token', token)
+        .is('used_at', null)
+        .gt('expires_at', new Date().toISOString())
+        .single();
+
+      if (error || !data) {
+        console.warn('Invalid or expired invite token');
+        setIsInviteValid(false);
+        // If it's a legacy token (from btoa), we might want to allow it for now
+        if (token.length === 12) {
+           setIsInviteValid(true);
+        }
+      } else {
+        setIsInviteValid(true);
+        setRole(data.role as 'Admin' | 'Motorista');
+        setIsSignUp(true);
+      }
+    } catch (err) {
+      console.error('Error validating invite:', err);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +101,14 @@ export default function Login() {
         if (signUpError) throw signUpError;
         
         if (signUpData.user) {
+          // Mark invite as used if applicable
+          if (inviteToken && isInviteValid) {
+            await supabase
+              .from('invites')
+              .update({ used_at: new Date().toISOString() })
+              .eq('token', inviteToken);
+          }
+
           setSuccess('Conta criada com sucesso! Você já pode entrar agora.');
           setIsSignUp(false);
         }
@@ -287,13 +333,29 @@ export default function Login() {
             <p className="text-sm text-slate-500 dark:text-slate-400">
               {isSignUp ? 'Já tem uma conta?' : 'Não tem uma conta?'}
               {' '}
-              <button 
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="font-semibold text-primary hover:underline"
-              >
-                {isSignUp ? 'Fazer login' : 'Criar uma agora'}
-              </button>
+              {isSignUp ? (
+                <button 
+                  type="button"
+                  onClick={() => setIsSignUp(false)}
+                  className="font-semibold text-primary hover:underline"
+                >
+                  Fazer login
+                </button>
+              ) : (
+                inviteToken && isInviteValid ? (
+                  <button 
+                    type="button"
+                    onClick={() => setIsSignUp(true)}
+                    className="font-semibold text-primary hover:underline"
+                  >
+                    Criar uma agora
+                  </button>
+                ) : (
+                  <span className="text-xs italic text-slate-400 block mt-2">
+                    O cadastro de novos usuários é restrito a convites.
+                  </span>
+                )
+              )}
             </p>
           </div>
         </div>

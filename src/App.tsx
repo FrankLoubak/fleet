@@ -13,9 +13,12 @@ import TimeBank from './pages/TimeBank';
 import Users from './pages/Users';
 import Profile from './pages/Profile';
 
+import { Toaster } from 'react-hot-toast';
+
 export default function App() {
   return (
     <Router>
+      <Toaster position="top-right" />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} />

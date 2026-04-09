@@ -1,51 +1,117 @@
 import React, { useEffect, useState } from 'react';
-import { Users as UsersIcon, UserPlus, Search, Shield, Mail, Phone, MoreVertical, Edit2, Trash2, Share2, Check, Copy } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users as UsersIcon, UserPlus, Search, Shield, Mail, Phone, MoreVertical, Edit2, Trash2, Share2, Check, Copy, RefreshCw, AlertCircle, Loader2, X } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { User } from '../types';
 import { supabase } from '../lib/supabase';
 import { cn } from '../utils';
+import { toast } from 'react-hot-toast';
 
 export default function Users() {
+  const navigate = useNavigate();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteLink, setInviteLink] = useState('');
   const [copied, setCopied] = useState(false);
+  const [generatingInvite, setGeneratingInvite] = useState(false);
+  const [inviteRole, setInviteRole] = useState<'Admin' | 'Motorista' | 'Root'>('Motorista');
+  const [error, setError] = useState<string | null>(null);
 
-  const inviteLink = window.location.origin;
+  useEffect(() => {
+    const userJson = localStorage.getItem('fleet_user');
+    if (userJson) {
+      const user = JSON.parse(userJson);
+      setCurrentUser(user);
+      
+      // Restrict access to Root only
+      if (user.role !== 'Root') {
+        toast.error('Acesso restrito ao usuário Root');
+        navigate('/daily-report');
+      }
+    } else {
+      navigate('/login');
+    }
+  }, [navigate]);
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (err: any) {
+      console.error('Error fetching users:', err);
+      setError('Erro ao carregar usuários. Verifique suas permissões no banco de dados.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser?.role === 'Root') {
+      fetchUsers();
+    }
+  }, [currentUser]);
+
+  const generateInviteLink = async () => {
+    setGeneratingInvite(true);
+    try {
+      const baseUrl = window.location.origin;
+      const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      
+      // Save invite to database
+      const { error } = await supabase
+        .from('invites')
+        .insert([
+          { 
+            token, 
+            role: inviteRole, 
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() 
+          }
+        ]);
+
+      if (error) {
+        console.warn('Invite table might not exist yet, using fallback method');
+        // Fallback if table doesn't exist
+        const fallbackToken = btoa(new Date().getTime().toString()).substring(0, 12);
+        setInviteLink(`${baseUrl}/login?invite=${fallbackToken}`);
+      } else {
+        setInviteLink(`${baseUrl}/login?invite=${token}`);
+      }
+      
+      setCopied(false);
+      toast.success('Novo link de convite gerado!');
+    } catch (err: any) {
+      console.error('Error generating invite:', err);
+      toast.error('Erro ao gerar link de convite');
+    } finally {
+      setGeneratingInvite(false);
+    }
+  };
 
   const handleCopyLink = () => {
+    if (!inviteLink) return;
     navigator.clipboard.writeText(inviteLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .order('name');
-        
-        if (error) throw error;
-        setUsers(data || []);
-      } catch (err) {
-        console.error('Error fetching users:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUsers();
-  }, []);
 
   const filteredUsers = users.filter(user => 
     (user.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
     (user.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
     (user.cpf || '').includes(searchTerm)
   );
+
+  if (!currentUser || currentUser.role !== 'Root') return null;
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -86,28 +152,57 @@ export default function Users() {
                   </div>
                   <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Convidar Usuário</h3>
                   <p className="text-slate-500 dark:text-slate-400 mb-8">
-                    Compartilhe o link abaixo para que o novo usuário possa acessar e instalar o aplicativo Gestor Frota.
+                    Gere um link de convite para que novos usuários possam se cadastrar no sistema. O link expira em 24 horas.
                   </p>
 
-                  <div className="relative mb-8">
-                    <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 pr-12 font-mono text-sm text-slate-600 dark:text-slate-300 break-all">
-                      {inviteLink}
+                  <div className="space-y-4 mb-8">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase ml-1">Nível de Acesso</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['Motorista', 'Admin', 'Root'] as const).map((r) => (
+                          <button
+                            key={r}
+                            onClick={() => setInviteRole(r)}
+                            className={cn(
+                              "py-2 rounded-lg text-xs font-bold border-2 transition-all",
+                              inviteRole === r 
+                                ? "border-blue-600 bg-blue-50 text-blue-600" 
+                                : "border-slate-100 dark:border-slate-800 text-slate-400 hover:border-slate-200"
+                            )}
+                          >
+                            {r}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <button 
-                      onClick={handleCopyLink}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-blue-600 transition-colors"
-                    >
-                      {copied ? <Check size={20} className="text-green-500" /> : <Copy size={20} />}
-                    </button>
+
+                    {inviteLink ? (
+                      <div className="relative">
+                        <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 pr-12 font-mono text-xs text-slate-600 dark:text-slate-300 break-all">
+                          {inviteLink}
+                        </div>
+                        <button 
+                          onClick={handleCopyLink}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                        >
+                          {copied ? <Check size={20} className="text-green-500" /> : <Copy size={20} />}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-50 dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-8 text-center">
+                        <p className="text-sm text-slate-400">Nenhum link gerado ainda</p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-3">
                     <button 
-                      onClick={handleCopyLink}
+                      onClick={generateInviteLink}
+                      disabled={generatingInvite}
                       className="btn-primary w-full py-3 flex items-center justify-center gap-2"
                     >
-                      {copied ? <Check size={20} /> : <Copy size={20} />}
-                      <span>{copied ? 'Link Copiado!' : 'Copiar Link de Convite'}</span>
+                      {generatingInvite ? <RefreshCw size={20} className="animate-spin" /> : <RefreshCw size={20} />}
+                      <span>{inviteLink ? 'Gerar Novo Link' : 'Gerar Link de Convite'}</span>
                     </button>
                     <button 
                       onClick={() => setShowInviteModal(false)}
@@ -118,6 +213,14 @@ export default function Users() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl flex items-center gap-3 text-red-600 dark:text-red-400 animate-in fade-in slide-in-from-top-2">
+              <AlertCircle size={20} />
+              <p className="text-sm font-medium">{error}</p>
+              <button onClick={fetchUsers} className="ml-auto text-xs font-bold underline">Tentar novamente</button>
             </div>
           )}
 

@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar';
 import { cn } from '../utils';
 import { User as UserType, Journey, Vehicle, RefuelingRecord, MaintenanceRecord } from '../types';
 import { supabase } from '../lib/supabase';
+import { toast } from 'react-hot-toast';
 
 export default function Vehicles() {
   const navigate = useNavigate();
@@ -229,9 +230,10 @@ export default function Vehicles() {
 
       setIsModalOpen(false);
       loadVehicles();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving vehicle:', err);
-      alert('Erro ao salvar veículo. Tente novamente.');
+      const errorMessage = err.message || 'Erro desconhecido ao salvar veículo.';
+      toast.error(editingVehicle ? `Erro ao atualizar veículo: ${errorMessage}` : `Erro ao salvar veículo: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
