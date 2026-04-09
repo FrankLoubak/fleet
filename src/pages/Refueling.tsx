@@ -108,7 +108,7 @@ export default function Refueling() {
   }, [navigate]);
 
   const vehicle = vehicles.find(v => v.id === activeJourney?.vehicleId);
-  const previousKM = lastRefueling?.odometer || vehicle?.lastOdometer || 0;
+  const previousKM = lastRefueling?.odometer || vehicle?.last_odometer || vehicle?.lastOdometer || 0;
   const averageConsumption = odometer && quantity && Number(quantity) > 0 
     ? (Number(odometer) - previousKM) / Number(quantity) 
     : 0;
@@ -293,7 +293,9 @@ export default function Refueling() {
 
       // Update vehicle last_odometer if this is the newest
       const odoNum = Number(odometer);
-      const currentVal = vehicle?.vehicle_type === 'maquina' ? (vehicle.current_hourmeter || 0) : (vehicle?.current_odometer || vehicle?.lastOdometer || 0);
+      const currentVal = vehicle?.vehicle_type === 'maquina' 
+        ? (vehicle.current_hourmeter || 0) 
+        : (vehicle?.current_odometer || vehicle?.last_odometer || vehicle?.lastOdometer || 0);
       
       if (odoNum > currentVal && activeJourney.vehicleId) {
         const updatePayload: any = { last_odometer: odoNum };

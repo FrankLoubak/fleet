@@ -11,6 +11,7 @@ import Sidebar from '../components/Sidebar';
 import { cn } from '../utils';
 import { User as UserType, Vehicle, MaintenanceRecord, MaintenanceRequest, MaintenanceType } from '../types';
 import { supabase } from '../lib/supabase';
+import { toast } from 'react-hot-toast';
 
 type ViewMode = 'executadas' | 'autorizadas' | 'pendentes' | 'canceladas';
 
@@ -176,8 +177,6 @@ export default function MaintenanceList() {
         total_value: request.budgetValue || 0,
         status: 'pendente',
         provider: 'A definir',
-        // User asked to fill columns EXCEPT date and mileage from request_id data.
-        // However, these are likely required in DB. Using request values as defaults.
         date: request.date,
         mileage: request.odometer
       };
@@ -188,11 +187,11 @@ export default function MaintenanceList() {
 
       if (insertError) throw insertError;
 
-      alert('Solicitação autorizada com sucesso!');
+      toast.success('Solicitação autorizada com sucesso!');
       fetchData();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error authorizing request:', err);
-      alert('Erro ao autorizar solicitação.');
+      toast.error(`Erro ao autorizar solicitação: ${err.message || 'Erro desconhecido'}`);
     } finally {
       setActionLoading(null);
     }
@@ -318,12 +317,12 @@ export default function MaintenanceList() {
         if (error) throw error;
       }
 
-      alert('Registro atualizado com sucesso!');
+      toast.success('Registro atualizado com sucesso!');
       setIsEditModalOpen(false);
       fetchData();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating record:', err);
-      alert('Erro ao atualizar registro.');
+      toast.error(`Erro ao atualizar registro: ${err.message || 'Erro desconhecido'}`);
     } finally {
       setLoading(false);
     }
@@ -438,31 +437,31 @@ export default function MaintenanceList() {
     if (!file) return;
 
     if (file.type !== 'application/pdf') {
-      alert('Por favor, selecione apenas arquivos PDF.');
+      toast.error('Por favor, selecione apenas arquivos PDF.');
       return;
     }
 
     setLoading(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `maintenance-docs/${fileName}`;
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+      const filePath = `admin-uploads/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('documents')
+        .from('maintenance_documents')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('documents')
+        .from('maintenance_documents')
         .getPublicUrl(filePath);
 
       setEditForm({ ...editForm, documentUrl: publicUrl });
-      alert('Documento enviado com sucesso!');
-    } catch (err) {
+      toast.success('Documento enviado com sucesso!');
+    } catch (err: any) {
       console.error('Error uploading file:', err);
-      alert('Erro ao enviar documento. Verifique se o bucket "documents" existe.');
+      toast.error(`Erro ao enviar documento: ${err.message || 'Erro desconhecido'}`);
     } finally {
       setLoading(false);
     }

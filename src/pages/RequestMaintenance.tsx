@@ -4,6 +4,7 @@ import { ArrowLeft, Send, User, Truck, Calendar, Zap, ClipboardList, Power, Wren
 import { cn } from '../utils';
 import { MaintenanceType, User as UserType, Vehicle } from '../types';
 import { supabase } from '../lib/supabase';
+import { toast } from 'react-hot-toast';
 
 export default function RequestMaintenance() {
   const navigate = useNavigate();
@@ -24,7 +25,11 @@ export default function RequestMaintenance() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.type !== 'application/pdf') {
-        alert('Por favor, selecione apenas arquivos PDF.');
+        toast.error('Por favor, selecione apenas arquivos PDF.');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('O arquivo deve ter no máximo 5MB.');
         return;
       }
       setDocumentFile(file);
@@ -74,7 +79,7 @@ export default function RequestMaintenance() {
 
   const handleSendRequest = async () => {
     if (!selectedVehicle || !selectedType || !odometer || !description) {
-      alert('Por favor, preencha todos os campos.');
+      toast.error('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
 
@@ -83,14 +88,25 @@ export default function RequestMaintenance() {
       let documentUrl = '';
       if (documentFile) {
         const fileExt = documentFile.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `${currentUser?.id}/${fileName}`;
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+        const filePath = `requests/${currentUser?.id}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from('maintenance_documents')
-          .upload(filePath, documentFile);
+          .upload(filePath, documentFile, {
+            cacheControl: '3600',
+            upsert: false
+          });
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          // If bucket doesn't exist, try 'documents' as fallback or just warn
+          if (uploadError.message.includes('bucket not found')) {
+            toast.error('Erro: Bucket de armazenamento não configurado. Contate o administrador.');
+            throw new Error('Storage bucket not found');
+          }
+          throw uploadError;
+        }
 
         const { data: { publicUrl } } = supabase.storage
           .from('maintenance_documents')
@@ -119,11 +135,11 @@ export default function RequestMaintenance() {
 
       if (error) throw error;
 
-      alert('Solicitação enviada com sucesso!');
+      toast.success('Solicitação enviada com sucesso!');
       navigate(-1);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error sending request:', err);
-      alert('Erro ao enviar solicitação.');
+      toast.error(`Erro ao enviar solicitação: ${err.message || 'Erro desconhecido'}`);
     } finally {
       setLoading(false);
     }

@@ -187,8 +187,9 @@ export default function Maintenance() {
     }
 
     const odoNum = Number(mileage);
-    if (mileage && odoNum <= (vehicle?.lastOdometer || 0)) {
-      errors.push(`O KM da manutenção (${odoNum}) deve ser maior que o último KM registrado (${vehicle?.lastOdometer || 0}).`);
+    const lastOdo = vehicle?.last_odometer || vehicle?.lastOdometer || 0;
+    if (mileage && odoNum <= lastOdo) {
+      errors.push(`O KM da manutenção (${odoNum}) deve ser maior que o último KM registrado (${lastOdo}).`);
     }
 
     if (errors.length > 0) {
@@ -219,7 +220,9 @@ export default function Maintenance() {
 
       // Update vehicle last_odometer if this is the newest
       const odoNum = Number(mileage);
-      const currentVal = vehicle?.vehicle_type === 'maquina' ? (vehicle.current_hourmeter || 0) : (vehicle?.current_odometer || vehicle?.lastOdometer || 0);
+      const currentVal = vehicle?.vehicle_type === 'maquina' 
+        ? (vehicle.current_hourmeter || 0) 
+        : (vehicle?.current_odometer || vehicle?.last_odometer || vehicle?.lastOdometer || 0);
       
       if (odoNum > currentVal) {
         const updatePayload: any = { last_odometer: odoNum };
