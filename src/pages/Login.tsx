@@ -8,7 +8,7 @@ export default function Login() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
-  const [role, setRole] = useState<'Admin' | 'Motorista'>('Motorista');
+  const [role, setRole] = useState<'Admin' | 'Motorista' | 'Gestor Frota'>('Motorista');
   const [cpf, setCpf] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -46,7 +46,7 @@ export default function Login() {
         }
       } else {
         setIsInviteValid(true);
-        setRole(data.role as 'Admin' | 'Motorista');
+        setRole(data.role as 'Admin' | 'Motorista' | 'Gestor Frota');
         setIsSignUp(true);
       }
     } catch (err) {
@@ -218,7 +218,7 @@ export default function Login() {
                   <label className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">
                     Tipo de Acesso
                   </label>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
                       onClick={() => setRole('Motorista')}
@@ -230,6 +230,18 @@ export default function Login() {
                       )}
                     >
                       Motorista
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRole('Gestor Frota')}
+                      className={cn(
+                        "h-12 rounded-xl border-2 font-bold transition-all",
+                        role === 'Gestor Frota' 
+                          ? "border-primary bg-primary/5 text-primary" 
+                          : "border-slate-200 dark:border-slate-800 text-slate-500"
+                      )}
+                    >
+                      Gestor Frota
                     </button>
                     <button
                       type="button"

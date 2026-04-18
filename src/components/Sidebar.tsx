@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase';
 const navItems = [
   { icon: Play, label: 'Início', path: '/daily-report' },
   { icon: Car, label: 'Veículos', path: '/vehicles' },
-  { icon: Wrench, label: 'Manutenções', path: '/maintenance-list', adminOnly: true },
+  { icon: Wrench, label: 'Manutenção', path: '/maintenance-list', adminOnly: true },
   { icon: Clock, label: 'Jornadas', path: '/journeys', adminOnly: true },
   { icon: Clock, label: 'Banco de Horas', path: '/time-bank' },
   { icon: BarChart3, label: 'Relatórios', path: '/dashboard', adminOnly: true },
@@ -34,7 +34,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
   useEffect(() => {
     const fetchAlerts = async () => {
-      if (!currentUser || (currentUser.role !== 'Admin' && currentUser.role !== 'Root')) return;
+      if (!currentUser || (currentUser.role !== 'Admin' && currentUser.role !== 'Root' && currentUser.role !== 'Gestor Frota')) return;
       
       try {
         const { count: pendingReqCount } = await supabase
@@ -106,7 +106,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
       <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const userRole = currentUser?.role;
-          if (item.adminOnly && userRole !== 'Admin' && userRole !== 'Root') return null;
+          if (item.adminOnly && userRole !== 'Admin' && userRole !== 'Root' && userRole !== 'Gestor Frota') return null;
           if (item.rootOnly && userRole !== 'Root') return null;
           
           const isActive = location.pathname === item.path;
@@ -215,7 +215,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                 <item.icon size={22} className={cn(isActive ? "text-white" : "text-slate-500")} />
                 <span className="text-[15px]">{item.label}</span>
               </div>
-              {item.label === 'Manutenções' && maintenanceCount > 0 && (
+              {item.label === 'Manutenção' && maintenanceCount > 0 && (
                 <span className={cn(
                   "flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold",
                   isActive ? "bg-white text-blue-600" : "bg-red-500 text-white"

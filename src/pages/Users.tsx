@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users as UsersIcon, UserPlus, Search, Shield, Mail, Phone, MoreVertical, Edit2, Trash2, Share2, Check, Copy, RefreshCw, AlertCircle, Loader2, X } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import Autocomplete from '../components/Autocomplete';
 import { User } from '../types';
 import { supabase } from '../lib/supabase';
 import { cn } from '../utils';
@@ -18,7 +19,7 @@ export default function Users() {
   const [inviteLink, setInviteLink] = useState('');
   const [copied, setCopied] = useState(false);
   const [generatingInvite, setGeneratingInvite] = useState(false);
-  const [inviteRole, setInviteRole] = useState<'Admin' | 'Motorista' | 'Root'>('Motorista');
+  const [inviteRole, setInviteRole] = useState<'Admin' | 'Motorista' | 'Root' | 'Gestor Frota'>('Motorista');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -158,8 +159,8 @@ export default function Users() {
                   <div className="space-y-4 mb-8">
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-500 uppercase ml-1">Nível de Acesso</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {(['Motorista', 'Admin', 'Root'] as const).map((r) => (
+                      <div className="grid grid-cols-4 gap-2">
+                        {(['Motorista', 'Gestor Frota', 'Admin', 'Root'] as const).map((r) => (
                           <button
                             key={r}
                             onClick={() => setInviteRole(r)}
@@ -225,16 +226,13 @@ export default function Users() {
           )}
 
           <div className="card p-4 mb-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-              <input
-                type="text"
-                placeholder="Buscar por nome, e-mail ou CPF..."
-                className="input-field pl-10"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+            <Autocomplete
+              table="profiles"
+              column="name"
+              placeholder="Buscar por nome, e-mail ou CPF..."
+              defaultValue={searchTerm}
+              onSelect={(val) => setSearchTerm(val)}
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -270,7 +268,7 @@ export default function Users() {
                         <span className={cn(
                           "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
                           user.role === 'Root' ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" :
-                          user.role === 'Admin' ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" :
+                          user.role === 'Admin' || user.role === 'Gestor Frota' ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" :
                           "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400"
                         )}>
                           {user.role}

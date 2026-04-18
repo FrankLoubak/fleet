@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Truck, Search, Filter, ChevronRight, LayoutGrid, List as ListIcon, MoreVertical, Plus, X, Edit2, Trash2, AlertTriangle, History, Calendar, ArrowRight, Clock, MapPin, Droplets, Wrench as WrenchIcon, Info, Download, Loader2, Menu } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import Autocomplete from '../components/Autocomplete';
 import { cn } from '../utils';
 import { User as UserType, Journey, Vehicle, RefuelingRecord, MaintenanceRecord } from '../types';
 import { supabase } from '../lib/supabase';
@@ -477,14 +478,13 @@ export default function Vehicles() {
         <div className="p-4 md:p-8 space-y-6">
           {/* Search and Filters */}
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="relative w-full md:max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input
-                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-2 focus:ring-primary outline-none dark:text-white transition-all"
+            <div className="w-full md:max-w-md">
+              <Autocomplete
+                table="vehicles"
+                column="plate"
                 placeholder="Buscar por placa, modelo ou prefixo..."
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                defaultValue={searchQuery}
+                onSelect={(val) => setSearchQuery(val)}
               />
             </div>
             <div className="flex items-center gap-3 w-full md:w-auto">

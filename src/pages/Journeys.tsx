@@ -27,6 +27,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import Autocomplete from '../components/Autocomplete';
 import { cn } from '../utils';
 import { User as UserType, Journey, Vehicle, RefuelingRecord, MaintenanceRecord } from '../types';
 import { supabase } from '../lib/supabase';
@@ -63,6 +64,127 @@ export default function Journeys() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isOdometerErrorModalOpen, setIsOdometerErrorModalOpen] = useState(false);
   const [lastOdometerValue, setLastOdometerValue] = useState(0);
+
+  const handleExportJourneysCSV = async () => {
+    setLoading(true);
+    try {
+      const { data: refuelingsData } = await supabase.from('refuelings').select('*');
+      const { data: maintenancesData } = await supabase.from('maintenances').select('*');
+      const { data: bancoHorasData } = await supabase.from('banco_de_horas').select('*');
+
+      const headers = [
+        'Motorista', 
+        'Veículo (Placa)', 
+        'Modelo',
+        'Tipo de Transporte',
+        'Data Início', 
+        'Hora Início',
+        'Data Fim',
+        'Hora Fim',
+        'KM Inicial', 
+        'KM Final', 
+        'Distância', 
+        'Status', 
+        'Horas Jornada (Líquida)',
+        'Intervalo',
+        'Qtd Combustível (L)',
+        'Custo Combustível (R$)',
+        'Manutenções Realizadas',
+        'Horas Banco de Horas'
+      ];
+
+      const rows = filteredJourneys.map(j => {
+        const user = users.find(u => u.id === j.userId);
+        const vehicle = vehicles.find(v => v.id === j.vehicleId);
+        
+        const start = new Date(j.startTime);
+        const end = j.endTime ? new Date(j.endTime) : null;
+        
+        let durationStr = '-';
+        let intervalStr = '-';
+
+        if (start && end) {
+          let diffMs = end.getTime() - start.getTime();
+          
+          if (j.interval_ini && j.interval_fim) {
+            const dateStr = j.startTime.split('T')[0];
+            const iStart = new Date(`${dateStr}T${j.interval_ini}`);
+            const iEnd = new Date(`${dateStr}T${j.interval_fim}`);
+            if (iEnd < iStart) iEnd.setDate(iEnd.getDate() + 1);
+            const intervalMs = iEnd.getTime() - iStart.getTime();
+            
+            if (intervalMs > 0) {
+              diffMs -= intervalMs;
+              const iHours = Math.floor(intervalMs / (1000 * 60 * 60));
+              const iMinutes = Math.floor((intervalMs % (1000 * 60 * 60)) / (1000 * 60));
+              intervalStr = `${iHours.toString().padStart(2, '0')}:${iMinutes.toString().padStart(2, '0')}`;
+            }
+          }
+          
+          if (diffMs > 0) {
+            const hours = Math.floor(diffMs / (1000 * 60 * 60));
+            const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            durationStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+          }
+        }
+
+        const journeyDateStr = j.startTime.split('T')[0];
+        const jRefuelings = (refuelingsData || []).filter(r => 
+          r.vehicle_id === j.vehicleId && r.date === journeyDateStr
+        );
+        const totalQty = jRefuelings.reduce((sum, r) => sum + (Number(r.quantity) || 0), 0);
+        const totalVal = jRefuelings.reduce((sum, r) => sum + (Number(r.total_value) || 0), 0);
+
+        const jMaintenances = (maintenancesData || []).filter(m => 
+          m.vehicle_id === j.vehicleId && m.date === journeyDateStr
+        );
+        const maintenancesList = jMaintenances.map(m => `${m.type}: ${m.description.replace(/;/g, ',')}`).join(' | ');
+
+        const bHoras = (bancoHorasData || []).find(b => b.journey_id === j.id);
+        const poolHours = bHoras ? bHoras.horas_adquiridas : '00:00';
+
+        return [
+          user ? user.name : '-',
+          vehicle ? vehicle.plate : '-',
+          vehicle ? vehicle.model : '-',
+          j.tipo_transp || '-',
+          start.toLocaleDateString('pt-BR'),
+          start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          end ? end.toLocaleDateString('pt-BR') : '-',
+          end ? end.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-',
+          j.startOdometer,
+          j.endOdometer || '-',
+          j.distanceTraveled || '-',
+          j.status === 'aberta' ? 'Aberta' : 'Encerrada',
+          durationStr,
+          intervalStr,
+          totalQty.toString().replace('.', ','),
+          totalVal.toString().replace('.', ','),
+          maintenancesList || '-',
+          poolHours
+        ];
+      });
+
+      const csvContent = [
+        headers.join(';'),
+        ...rows.map(row => row.join(';'))
+      ].join('\n');
+
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `relatorio_jornadas_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Error exporting CSV:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const exportFuelingsToCSV = () => {
     if (!selectedVehicleForDetails || vehicleFuelings.length === 0) return;
@@ -134,7 +256,10 @@ export default function Journeys() {
     observations: '',
     startLocation: '',
     destination: '',
-    endLocation: ''
+    endLocation: '',
+    tipoTransp: '',
+    intervalIni: '',
+    intervalFim: ''
   });
 
   useEffect(() => {
@@ -145,7 +270,7 @@ export default function Journeys() {
         return;
       }
       const user = JSON.parse(userJson);
-      if (user.role !== 'Admin') {
+      if (user.role !== 'Admin' && user.role !== 'Root' && user.role !== 'Gestor Frota') {
         navigate('/daily-report');
         return;
       }
@@ -192,8 +317,11 @@ export default function Journeys() {
         start_location: j.start_location,
         destination: j.destination,
         end_location: j.end_location,
+        tipo_transp: j.tipo_transp,
         validation_status: j.validation_status,
-        validated_by: j.validated_by
+        validated_by: j.validated_by,
+        interval_ini: j.interval_ini,
+        interval_fim: j.interval_fim
       }));
 
       setJourneys(normalizedJourneys);
@@ -227,7 +355,18 @@ export default function Journeys() {
       // Calculate excess time
       const startTime = new Date(journey.startTime);
       const endTime = new Date(journey.endTime!);
-      const durationMs = endTime.getTime() - startTime.getTime();
+      let durationMs = endTime.getTime() - startTime.getTime();
+
+      // Subtract interval
+      if (journey.interval_ini && journey.interval_fim) {
+        const dateStr = journey.startTime.split('T')[0];
+        const iStart = new Date(`${dateStr}T${journey.interval_ini}`);
+        const iEnd = new Date(`${dateStr}T${journey.interval_fim}`);
+        if (iEnd < iStart) iEnd.setDate(iEnd.getDate() + 1);
+        const intervalMs = iEnd.getTime() - iStart.getTime();
+        if (intervalMs > 0) durationMs -= intervalMs;
+      }
+
       const eightHoursMs = 8 * 60 * 60 * 1000;
       
       const excessMs = Math.max(0, durationMs - eightHoursMs);
@@ -284,7 +423,10 @@ export default function Journeys() {
         observations: journey.observations || '',
         startLocation: journey.start_location || '',
         destination: journey.destination || '',
-        endLocation: journey.end_location || ''
+        endLocation: journey.end_location || '',
+        tipoTransp: journey.tipo_transp || '',
+        intervalIni: journey.interval_ini || '',
+        intervalFim: journey.interval_fim || ''
       });
     } else {
       setEditingJourney(null);
@@ -301,7 +443,10 @@ export default function Journeys() {
         observations: '',
         startLocation: '',
         destination: '',
-        endLocation: ''
+        endLocation: '',
+        tipoTransp: '',
+        intervalIni: '',
+        intervalFim: ''
       });
     }
     setIsModalOpen(true);
@@ -351,7 +496,10 @@ export default function Journeys() {
         observations: formData.observations,
         start_location: formData.startLocation,
         destination: formData.destination,
-        end_location: formData.endLocation
+        end_location: formData.endLocation,
+        tipo_transp: formData.tipoTransp || null,
+        interval_ini: formData.intervalIni || null,
+        interval_fim: formData.intervalFim || null
       };
 
       if (editingJourney) {
@@ -623,13 +771,24 @@ export default function Journeys() {
             </button>
             <h2 className="text-base md:text-lg font-bold dark:text-white">Gestão de Jornadas</h2>
           </div>
-          <button 
-            onClick={() => handleOpenModal()}
-            className="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-primary/20 flex items-center gap-2"
-          >
-            <Plus size={18} />
-            <span>Nova Jornada</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleExportJourneysCSV}
+              disabled={loading || filteredJourneys.length === 0}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 flex items-center gap-2"
+              title="Exportar jornadas filtradas para CSV"
+            >
+              {loading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+              <span className="hidden md:inline">Exportar CSV</span>
+            </button>
+            <button 
+              onClick={() => handleOpenModal()}
+              className="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-primary/20 flex items-center gap-2"
+            >
+              <Plus size={18} />
+              <span>Nova Jornada</span>
+            </button>
+          </div>
         </header>
 
         <div className="p-4 md:p-8 space-y-6">
@@ -655,16 +814,13 @@ export default function Journeys() {
             <div className="flex flex-col md:flex-row gap-4 w-full lg:w-auto flex-1">
               <div className="flex flex-col gap-1.5 flex-1 md:max-w-xs">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Pesquisa Geral</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <input
-                    className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-2 focus:ring-primary outline-none dark:text-white transition-all"
-                    placeholder="Placa, motorista ou ID..."
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
+                <Autocomplete
+                  table="vehicles"
+                  column="plate"
+                  placeholder="Placa, motorista ou ID..."
+                  defaultValue={searchQuery}
+                  onSelect={(val) => setSearchQuery(val)}
+                />
               </div>
               
               <div className="flex flex-col gap-1.5 flex-1">
@@ -832,7 +988,27 @@ export default function Journeys() {
                             {journey.endTime ? (() => {
                               const start = new Date(journey.startTime);
                               const end = new Date(journey.endTime);
-                              const diff = end.getTime() - start.getTime();
+                              let diff = end.getTime() - start.getTime();
+
+                              // Subtract interval
+                              if (journey.interval_ini && journey.interval_fim) {
+                                const [h1, m1] = journey.interval_ini.split(':').map(Number);
+                                const [h2, m2] = journey.interval_fim.split(':').map(Number);
+                                const dateStr = journey.startTime.split('T')[0];
+                                
+                                const iStart = new Date(`${dateStr}T${journey.interval_ini}`);
+                                const iEnd = new Date(`${dateStr}T${journey.interval_fim}`);
+                                
+                                if (iEnd < iStart) {
+                                  iEnd.setDate(iEnd.getDate() + 1);
+                                }
+                                
+                                const intervalMs = iEnd.getTime() - iStart.getTime();
+                                if (intervalMs > 0) {
+                                  diff -= intervalMs;
+                                }
+                              }
+
                               const h = Math.floor(diff / (1000 * 60 * 60));
                               const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                               return `${h}h ${m}m`;
@@ -841,7 +1017,27 @@ export default function Journeys() {
                           {journey.endTime && (() => {
                             const start = new Date(journey.startTime);
                             const end = new Date(journey.endTime);
-                            const diff = end.getTime() - start.getTime();
+                            let diff = end.getTime() - start.getTime();
+
+                            // Subtract interval for excess check too
+                            if (journey.interval_ini && journey.interval_fim) {
+                              const [h1, m1] = journey.interval_ini.split(':').map(Number);
+                              const [h2, m2] = journey.interval_fim.split(':').map(Number);
+                              const dateStr = journey.startTime.split('T')[0];
+                              
+                              const iStart = new Date(`${dateStr}T${journey.interval_ini}`);
+                              const iEnd = new Date(`${dateStr}T${journey.interval_fim}`);
+                              
+                              if (iEnd < iStart) {
+                                iEnd.setDate(iEnd.getDate() + 1);
+                              }
+                              
+                              const intervalMs = iEnd.getTime() - iStart.getTime();
+                              if (intervalMs > 0) {
+                                diff -= intervalMs;
+                              }
+                            }
+
                             const eightHoursMs = 8 * 60 * 60 * 1000;
                             if (diff > eightHoursMs) {
                               const excess = diff - eightHoursMs;
@@ -1023,6 +1219,20 @@ export default function Journeys() {
                 </div>
 
                 <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl space-y-4">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Intervalo</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Início</label>
+                      <input type="time" className="input-field h-10 text-sm" value={formData.intervalIni} onChange={(e) => setFormData({...formData, intervalIni: e.target.value})} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fim</label>
+                      <input type="time" className="input-field h-10 text-sm" value={formData.intervalFim} onChange={(e) => setFormData({...formData, intervalFim: e.target.value})} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl space-y-4">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Deslocamento</h4>
                   <div className="space-y-3">
                     <div className="space-y-1.5">
@@ -1032,6 +1242,21 @@ export default function Journeys() {
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Destino</label>
                       <input type="text" className="input-field h-10 text-sm" value={formData.destination} onChange={(e) => setFormData({...formData, destination: e.target.value})} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Tipo de Transporte</label>
+                      <select
+                        className="input-field h-10 text-sm"
+                        value={formData.tipoTransp}
+                        onChange={(e) => setFormData({...formData, tipoTransp: e.target.value})}
+                      >
+                        <option value="">Selecione o tipo</option>
+                        <option value="01-colaboradores">01-colaboradores</option>
+                        <option value="02-CBUQ">02-CBUQ</option>
+                        <option value="03-Agregados">03-Agregados</option>
+                        <option value="04-Solo">04-Solo</option>
+                        <option value="05-Outros">05-Outros</option>
+                      </select>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Local Encerramento</label>

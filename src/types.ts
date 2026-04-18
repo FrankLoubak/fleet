@@ -64,7 +64,7 @@ export interface User {
   email: string;
   cpf: string;
   password?: string;
-  role: 'Root' | 'Admin' | 'Motorista';
+  role: 'Root' | 'Admin' | 'Motorista' | 'Gestor Frota';
   avatar?: string;
   phone?: string;
 }
@@ -85,6 +85,9 @@ export interface Journey {
   start_location?: string;
   destination?: string;
   end_location?: string;
+  interval_ini?: string;
+  interval_fim?: string;
+  tipo_transp?: string;
   validation_status?: 'pendente' | 'validada';
   validated_by?: string;
 }

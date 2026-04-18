@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, History, Calendar, Zap, Fuel, Save, Info, Droplet, Fuel as FuelIcon, TrendingUp, Truck, X, CheckCircle2, MapPin, Download, AlertTriangle, Loader2 } from 'lucide-react';
+import Autocomplete from '../components/Autocomplete';
 import { cn } from '../utils';
 import { Journey, RefuelingRecord, User as UserType, Vehicle } from '../types';
 import { supabase } from '../lib/supabase';
@@ -371,16 +372,14 @@ export default function Refueling() {
 
           <div className="flex flex-col gap-2">
             <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Local de Abastecimento</label>
-            <div className="relative">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input
-                className="input-field pl-12"
-                placeholder="Ex: Posto Central"
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-              />
-            </div>
+            <Autocomplete
+              table="refuelings"
+              column="location"
+              placeholder="Ex: Posto Central"
+              defaultValue={location}
+              onSelect={(val) => setLocation(val)}
+              inputClassName="pl-12"
+            />
           </div>
 
           <div className="flex flex-col gap-2">
