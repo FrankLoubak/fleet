@@ -401,16 +401,31 @@ export default function Vehicles() {
       return;
     }
 
-    const enrichedJourneys = (journeys || []).map(j => ({
-      ...j,
-      userId: j.user_id,
-      vehicleId: j.vehicle_id,
-      startTime: j.start_time,
-      endTime: j.end_time,
-      startOdometer: j.start_odometer,
-      endOdometer: j.end_odometer,
-      distanceTraveled: j.distance_traveled
-    }));
+    // Load profiles for these journeys to get driver names
+    const userIds = [...new Set((journeys || []).map(j => j.user_id))];
+    const { data: profiles, error: pError } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', userIds);
+
+    if (pError) {
+      console.error('Error loading profiles for history:', pError);
+    }
+
+    const enrichedJourneys = (journeys || []).map(j => {
+      const driver = profiles?.find(p => p.id === j.user_id);
+      return {
+        ...j,
+        userId: j.user_id,
+        vehicleId: j.vehicle_id,
+        startTime: j.start_time,
+        endTime: j.end_time,
+        startOdometer: j.start_odometer,
+        endOdometer: j.end_odometer,
+        distanceTraveled: j.distance_traveled,
+        driverName: driver?.name || 'Motorista'
+      };
+    });
 
     setFilteredJourneys(enrichedJourneys);
   };

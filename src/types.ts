@@ -88,6 +88,7 @@ export interface Journey {
   interval_ini?: string;
   interval_fim?: string;
   tipo_transp?: string;
+  driverName?: string;
   validation_status?: 'pendente' | 'validada';
   validated_by?: string;
 }

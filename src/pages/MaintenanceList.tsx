@@ -719,6 +719,11 @@ export default function MaintenanceList() {
                           <td className="px-6 py-4">
                             <p className="text-sm text-slate-500 max-w-xs truncate" title={m.description}>{m.description}</p>
                           </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm font-bold text-slate-900 dark:text-white">
+                              {m.totalValue ? `R$ ${m.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '---'}
+                            </span>
+                          </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-2">
                               {m.status === 'pendente' && (
@@ -757,7 +762,7 @@ export default function MaintenanceList() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={7} className="px-6 py-12 text-center text-slate-500">Nenhum registro encontrado</td>
+                        <td colSpan={9} className="px-6 py-12 text-center text-slate-500">Nenhum registro encontrado</td>
                       </tr>
                     )
                   ) : (
@@ -829,7 +834,7 @@ export default function MaintenanceList() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-slate-500">Nenhuma solicitação pendente</td>
+                        <td colSpan={7} className="px-6 py-12 text-center text-slate-500">Nenhuma solicitação pendente</td>
                       </tr>
                     )
                   )}
