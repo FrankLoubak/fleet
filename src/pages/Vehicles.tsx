@@ -193,11 +193,11 @@ export default function Vehicles() {
     setLoading(true);
     
     try {
-      const vehiclePayload: Partial<Vehicle> = {
+      const vehiclePayload: Record<string, unknown> = {
         plate: formData.vehicle_type === 'maquina' ? `MAQ-${formData.prefix}` : formData.plate,
         model: formData.model,
         prefix: formData.prefix,
-        vehicle_type: formData.vehicle_type as any,
+        vehicle_type: formData.vehicle_type,
         initial_odometer: formData.initial_odometer,
         initial_hourmeter: formData.initial_hourmeter,
       };

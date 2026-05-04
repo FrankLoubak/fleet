@@ -35,6 +35,10 @@ export default function DailyReport() {
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [endTime, setEndTime] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
   const [loading, setLoading] = useState(false);
+  const [tipoTransp, setTipoTransp] = useState('');
+  const [intervalIni, setIntervalIni] = useState('');
+  const [intervalFim, setIntervalFim] = useState('');
+  const [showInterval, setShowInterval] = useState(false);
 
   interface MaintenanceAlert {
     id: string;
@@ -308,7 +312,8 @@ export default function DailyReport() {
         vehicle_id: selectedVehicle,
         start_time: `${startDate}T${startTime}`,
         start_odometer: Number(startOdometer),
-        status: 'aberta'
+        status: 'aberta',
+        tipo_transp: tipoTransp || null
       };
 
       const { data: newJData, error: insertError } = await supabase
@@ -447,7 +452,9 @@ export default function DailyReport() {
           end_odometer: endOdom,
           distance_traveled: dist,
           status: 'encerrada',
-          validation_status: validationStatus
+          validation_status: validationStatus,
+          interval_ini: intervalIni || null,
+          interval_fim: intervalFim || null
         })
         .eq('id', currentJourney!.id);
 
@@ -474,6 +481,10 @@ export default function DailyReport() {
       setEndOdometer('');
       setSelectedVehicle('');
       setStartOdometer('');
+      setTipoTransp('');
+      setIntervalIni('');
+      setIntervalFim('');
+      setShowInterval(false);
 
       if (needsValidation) {
         setIsValidationAlertModalOpen(true);
@@ -820,6 +831,31 @@ export default function DailyReport() {
                 />
               </div>
             </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                Tipo de Transporte
+              </label>
+              <select
+                className={cn(
+                  "input-field",
+                  isJourneyOpen && "bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-70"
+                )}
+                value={tipoTransp}
+                onChange={(e) => setTipoTransp(e.target.value)}
+                disabled={isJourneyOpen}
+              >
+                <option value="">Selecione...</option>
+                <option value="Patrulhamento">Patrulhamento</option>
+                <option value="Escolta">Escolta</option>
+                <option value="Transporte de pessoal">Transporte de pessoal</option>
+                <option value="Transporte de material">Transporte de material</option>
+                <option value="Diligência">Diligência</option>
+                <option value="Operação">Operação</option>
+                <option value="Apoio">Apoio</option>
+                <option value="Administrativo">Administrativo</option>
+              </select>
+            </div>
           </section>
 
           <div className="pt-4 flex flex-col gap-4">
@@ -1013,14 +1049,53 @@ export default function DailyReport() {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowInterval(!showInterval)}
+                    className="flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <Clock size={16} />
+                    {showInterval ? 'Remover Intervalo' : '+ Adicionar Intervalo'}
+                  </button>
+                  {showInterval && (
+                    <div className="grid grid-cols-2 gap-4 pt-1">
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Início do Intervalo</label>
+                        <div className="relative flex items-center">
+                          <Clock className="absolute left-4 text-slate-400 w-5 h-5" />
+                          <input
+                            className="input-field pl-12"
+                            type="time"
+                            value={intervalIni}
+                            onChange={(e) => setIntervalIni(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Fim do Intervalo</label>
+                        <div className="relative flex items-center">
+                          <Clock className="absolute left-4 text-slate-400 w-5 h-5" />
+                          <input
+                            className="input-field pl-12"
+                            type="time"
+                            value={intervalFim}
+                            onChange={(e) => setIntervalFim(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="pt-4 flex flex-col gap-3">
-                  <button 
+                  <button
                     onClick={handleEndJourney}
                     className="btn-primary bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700 shadow-red-600/20"
                   >
                     Encerrar Jornada
                   </button>
-                  <button 
+                  <button
                     onClick={() => setIsEndModalOpen(false)}
                     className="w-full h-12 text-sm font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
                   >
