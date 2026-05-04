@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Truck, Search, Filter, ChevronRight, LayoutGrid, List as ListIcon, MoreVertical, Plus, X, Edit2, Trash2, AlertTriangle, History, Calendar, ArrowRight, Clock, MapPin, Droplets, Wrench as WrenchIcon, Info, Download, Loader2, Menu } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import Autocomplete from '../components/Autocomplete';
 import { cn } from '../utils';
 import { User as UserType, Journey, Vehicle, RefuelingRecord, MaintenanceRecord } from '../types';
 import { supabase } from '../lib/supabase';
+import { toast } from 'react-hot-toast';
 
 export default function Vehicles() {
   const navigate = useNavigate();
@@ -392,16 +394,31 @@ export default function Vehicles() {
       return;
     }
 
-    const enrichedJourneys = (journeys || []).map(j => ({
-      ...j,
-      userId: j.user_id,
-      vehicleId: j.vehicle_id,
-      startTime: j.start_time,
-      endTime: j.end_time,
-      startOdometer: j.start_odometer,
-      endOdometer: j.end_odometer,
-      distanceTraveled: j.distance_traveled
-    }));
+    // Load profiles for these journeys to get driver names
+    const userIds = [...new Set((journeys || []).map(j => j.user_id))];
+    const { data: profiles, error: pError } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', userIds);
+
+    if (pError) {
+      console.error('Error loading profiles for history:', pError);
+    }
+
+    const enrichedJourneys = (journeys || []).map(j => {
+      const driver = profiles?.find(p => p.id === j.user_id);
+      return {
+        ...j,
+        userId: j.user_id,
+        vehicleId: j.vehicle_id,
+        startTime: j.start_time,
+        endTime: j.end_time,
+        startOdometer: j.start_odometer,
+        endOdometer: j.end_odometer,
+        distanceTraveled: j.distance_traveled,
+        driverName: driver?.name || 'Motorista'
+      };
+    });
 
     setFilteredJourneys(enrichedJourneys);
   };
@@ -469,14 +486,13 @@ export default function Vehicles() {
         <div className="p-4 md:p-8 space-y-6">
           {/* Search and Filters */}
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="relative w-full md:max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input
-                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-2 focus:ring-primary outline-none dark:text-white transition-all"
+            <div className="w-full md:max-w-md">
+              <Autocomplete
+                table="vehicles"
+                column="plate"
                 placeholder="Buscar por placa, modelo ou prefixo..."
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                defaultValue={searchQuery}
+                onSelect={(val) => setSearchQuery(val)}
               />
             </div>
             <div className="flex items-center gap-3 w-full md:w-auto">
@@ -538,12 +554,12 @@ export default function Vehicles() {
                         <div className="flex flex-col">
                           <span className="text-sm font-bold dark:text-white">
                             {vehicle.vehicle_type === 'maquina' 
-                              ? `${(vehicle.current_hourmeter || 0).toLocaleString('pt-BR')} h`
-                              : `${(vehicle.current_odometer || 0).toLocaleString('pt-BR')} km`
+                              ? `${(vehicle.currentKm || 0).toLocaleString('pt-BR')} h`
+                              : `${(vehicle.currentKm || 0).toLocaleString('pt-BR')} km`
                             }
                           </span>
                           <span className="text-[10px] text-slate-400 uppercase font-bold">
-                            {vehicle.vehicle_type === 'maquina' ? 'Horímetro Atual' : 'Odômetro Atual'}
+                            {vehicle.vehicle_type === 'maquina' ? 'Horímetro (Última Jornada)' : 'Odômetro (Última Jornada)'}
                           </span>
                         </div>
                       </td>
@@ -626,12 +642,12 @@ export default function Vehicles() {
                   <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl mb-6">
                     <div>
                       <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">
-                        {vehicle.vehicle_type === 'maquina' ? 'Horímetro' : 'Odômetro'}
+                        {vehicle.vehicle_type === 'maquina' ? 'Horímetro (Jornada)' : 'Odômetro (Jornada)'}
                       </p>
                       <p className="text-sm font-bold dark:text-white">
                         {vehicle.vehicle_type === 'maquina' 
-                          ? `${(vehicle.current_hourmeter || 0).toLocaleString('pt-BR')} h`
-                          : `${(vehicle.current_odometer || 0).toLocaleString('pt-BR')} km`
+                          ? `${(vehicle.currentKm || 0).toLocaleString('pt-BR')} h`
+                          : `${(vehicle.currentKm || 0).toLocaleString('pt-BR')} km`
                         }
                       </p>
                     </div>

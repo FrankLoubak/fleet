@@ -9,6 +9,7 @@ import {
   Download, Filter, ChevronRight, AlertCircle, X, Truck, Check, Loader2, Menu, Clock
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import Autocomplete from '../components/Autocomplete';
 import { cn } from '../utils';
 import { User as UserType, Journey, RefuelingRecord, MaintenanceRecord, Vehicle } from '../types';
 import { supabase } from '../lib/supabase';
@@ -365,7 +366,7 @@ export default function Dashboard() {
       }
 
       const user = JSON.parse(userJson) as UserType;
-      if (user.role === 'Operador') {
+      if (user.role === 'Motorista') {
         navigate('/daily-report');
         return;
       }
@@ -426,11 +427,15 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-6">
             <div className="relative max-w-xs hidden md:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input
-                className="pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary w-64 dark:text-white"
+              <Autocomplete
+                table="vehicles"
+                column="plate"
                 placeholder="Buscar veículo ou placa..."
-                type="text"
+                onSelect={(val, item) => {
+                  if (item) navigate(`/vehicles?plate=${item.plate}`);
+                }}
+                className="w-64"
+                inputClassName="py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary w-64 dark:text-white"
               />
             </div>
             <div className="flex items-center gap-3">
@@ -478,17 +483,16 @@ export default function Dashboard() {
               <div className="flex flex-col gap-4">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-slate-500">Veículo</label>
-                  <button 
-                    onClick={() => setIsSearchModalOpen(true)}
-                    className="flex items-center justify-between w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg py-2.5 px-4 text-sm dark:text-slate-300 hover:border-primary transition-colors text-left"
-                  >
-                    <span className="truncate">
-                      {selectedVehicleId === 'all' 
-                        ? 'Todos os Veículos' 
-                        : vehicles.find(v => v.id === selectedVehicleId)?.plate + ' (' + vehicles.find(v => v.id === selectedVehicleId)?.model + ')'}
-                    </span>
-                    <Search size={16} className="text-slate-400 ml-2 flex-shrink-0" />
-                  </button>
+                  <Autocomplete
+                    table="vehicles"
+                    column="plate"
+                    placeholder="Filtrar por veículo..."
+                    defaultValue={selectedVehicleId === 'all' ? '' : vehicles.find(v => v.id === selectedVehicleId)?.plate || ''}
+                    onSelect={(val, item) => {
+                      if (item) setSelectedVehicleId(item.id);
+                      else if (!val) setSelectedVehicleId('all');
+                    }}
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-slate-500">Período</label>

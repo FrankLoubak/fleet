@@ -16,7 +16,10 @@ export default function DailyReport() {
   
   // Form states
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [startTime, setStartTime] = useState('08:00');
+  const [startTime, setStartTime] = useState(() => {
+    const now = new Date();
+    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+  });
   const [startOdometer, setStartOdometer] = useState('');
   
   // Modal states
@@ -34,7 +37,10 @@ export default function DailyReport() {
   const [occupyingUser, setOccupyingUser] = useState<UserType | null>(null);
   const [endOdometer, setEndOdometer] = useState('');
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endTime, setEndTime] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+  const [endTime, setEndTime] = useState(() => {
+    const now = new Date();
+    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+  });
   const [loading, setLoading] = useState(false);
   const [intervalIni, setIntervalIni] = useState('');
   const [intervalFim, setIntervalFim] = useState('');
@@ -55,6 +61,18 @@ export default function DailyReport() {
   }
 
   const [maintenanceAlerts, setMaintenanceAlerts] = useState<MaintenanceAlert[]>([]);
+
+  // Displacement states
+  const [isDisplacementModalOpen, setIsDisplacementModalOpen] = useState(false);
+  const [startLocation, setStartLocation] = useState('');
+  const [destination, setDestination] = useState('');
+  const [endLocation, setEndLocation] = useState('');
+  const [tipoTransp, setTipoTransp] = useState('');
+
+  // Interval states
+  const [isIntervalModalOpen, setIsIntervalModalOpen] = useState(false);
+  const [intervalIni, setIntervalIni] = useState('');
+  const [intervalFim, setIntervalFim] = useState('');
 
   const isJourneyOpen = currentJourney?.status === 'aberta';
 
@@ -131,6 +149,16 @@ export default function DailyReport() {
         setStartOdometer(journey.startOdometer.toString());
         setStartTime(journey.startTime.split('T')[1].substring(0, 5));
         setStartDate(journey.startTime.split('T')[0]);
+        
+        // Load displacement data
+        setStartLocation(j.start_location || '');
+        setDestination(j.destination || '');
+        setEndLocation(j.end_location || '');
+        setTipoTransp(j.tipo_transp || '');
+
+        // Load interval data
+        setIntervalIni(j.interval_ini || '');
+        setIntervalFim(j.interval_fim || '');
       }
 
       // Fetch time bank total
@@ -268,7 +296,7 @@ export default function DailyReport() {
       if (vehicleJourneys && vehicleJourneys.length > 0) {
         const j = vehicleJourneys[0];
         const userWhoOpened = users.find((u: UserType) => u.id === j.user_id);
-        setOccupyingUser(userWhoOpened || { id: j.user_id, name: 'Outro Motorista', email: '', role: 'Operador', avatar: '' });
+        setOccupyingUser(userWhoOpened || { id: j.user_id, name: 'Outro Motorista', email: '', role: 'Motorista', avatar: '' });
         setIsVehicleOccupiedModalOpen(true);
         return;
       }
@@ -486,7 +514,27 @@ export default function DailyReport() {
       const startNaive = currentJourney!.startTime.substring(0, 16);
       const startTimeDate = new Date(startNaive);
       const endTimeDate = new Date(endTimeStr);
-      const durationMs = endTimeDate.getTime() - startTimeDate.getTime();
+      let durationMs = endTimeDate.getTime() - startTimeDate.getTime();
+
+      // Descontar intervalo
+      if (intervalIni && intervalFim) {
+        const [h1, m1] = intervalIni.split(':').map(Number);
+        const [h2, m2] = intervalFim.split(':').map(Number);
+        const dateStr = currentJourney!.startTime.split('T')[0];
+        
+        const iStart = new Date(`${dateStr}T${intervalIni}`);
+        const iEnd = new Date(`${dateStr}T${intervalFim}`);
+        
+        if (iEnd < iStart) {
+          iEnd.setDate(iEnd.getDate() + 1);
+        }
+        
+        const diff = iEnd.getTime() - iStart.getTime();
+        if (diff > 0) {
+          durationMs -= diff;
+        }
+      }
+
       const eightHoursMs = 8 * 60 * 60 * 1000;
 
       // Calcula intervalo em ms (se informado)
@@ -584,6 +632,18 @@ export default function DailyReport() {
       setErrorMessages([
         `O ${prevMedidorNome} final deve ser maior que o ${prevMedidorNome} inicial (${prevStartOdom} ${prevUnidade}).`
       ]);
+      setIsGeneralErrorModalOpen(true);
+      return;
+    }
+
+    // Validar se o horário de encerramento não é no futuro
+    const now = new Date();
+    const [hours, minutes] = endTime.split(':').map(Number);
+    const selectedEnd = new Date(endDate);
+    selectedEnd.setHours(hours, minutes, 0, 0);
+
+    if (selectedEnd > now) {
+      setErrorMessages(['O horário de encerramento não pode ser superior ao horário atual.']);
       setIsGeneralErrorModalOpen(true);
       return;
     }
@@ -851,20 +911,22 @@ export default function DailyReport() {
 
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Veículo</label>
-              <select 
-                className={cn(
-                  "input-field appearance-none",
-                  isJourneyOpen && "bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-70"
-                )}
-                value={selectedVehicle}
-                onChange={(e) => setSelectedVehicle(e.target.value)}
-                disabled={isJourneyOpen}
-              >
-                <option value="">Selecione um veículo da frota</option>
-                {vehicles.map(v => (
-                  <option key={v.id} value={v.id}>{v.model} - [{v.plate}]</option>
-                ))}
-              </select>
+              <Autocomplete
+                table="vehicles"
+                column="plate"
+                placeholder="Selecione o veículo..."
+                defaultValue={selectedVehicle || ''}
+                onSelect={(val, item) => {
+                  if (item) {
+                    setSelectedVehicle(item.id);
+                    setStartOdometer(item.last_odometer?.toString() || item.current_odometer?.toString() || '');
+                  } else if (!val) {
+                    setSelectedVehicle('');
+                    setStartOdometer('');
+                  }
+                }}
+                className={cn(isJourneyOpen && "opacity-70 pointer-events-none")}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -927,6 +989,7 @@ export default function DailyReport() {
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
                     disabled={isJourneyOpen}
+                    step="60"
                   />
                 </div>
               </div>
@@ -1085,11 +1148,113 @@ export default function DailyReport() {
           </button>
         </nav>
 
+        {/* Displacement Modal */}
+        {isDisplacementModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">Dados de Deslocamento</h3>
+                  <button 
+                    onClick={() => setIsDisplacementModalOpen(false)}
+                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Informe os locais de início, destino e encerramento do seu deslocamento.
+                </p>
+
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">01 - Local de Início</label>
+                    <input
+                      className="input-field"
+                      placeholder="Ex: Garagem Central"
+                      type="text"
+                      value={startLocation}
+                      onChange={(e) => setStartLocation(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">02 - Destino</label>
+                    <input
+                      className="input-field"
+                      placeholder="Ex: Obra Setor Norte"
+                      type="text"
+                      value={destination}
+                      onChange={(e) => setDestination(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Tipo de Transporte</label>
+                    <select
+                      className="input-field"
+                      value={tipoTransp}
+                      onChange={(e) => setTipoTransp(e.target.value)}
+                    >
+                      <option value="">Selecione o tipo</option>
+                      <option value="01-colaboradores">01-colaboradores</option>
+                      <option value="02-CBUQ">02-CBUQ</option>
+                      <option value="03-Agregados">03-Agregados</option>
+                      <option value="04-Solo">04-Solo</option>
+                      <option value="05-Outros">05-Outros</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">03 - Local Encerramento</label>
+                    <input
+                      className="input-field"
+                      placeholder="Ex: Garagem Central"
+                      type="text"
+                      value={endLocation}
+                      onChange={(e) => setEndLocation(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <button 
+                    onClick={async () => {
+                      if (currentJourney) {
+                        setLoading(true);
+                        const { error } = await supabase
+                          .from('journeys')
+                          .update({
+                            start_location: startLocation,
+                            destination: destination,
+                            end_location: endLocation,
+                            tipo_transp: tipoTransp || null
+                          })
+                          .eq('id', currentJourney.id);
+                        
+                        setLoading(false);
+                        if (error) {
+                          alert('Erro ao salvar deslocamento.');
+                        } else {
+                          setIsDisplacementModalOpen(false);
+                        }
+                      } else {
+                        setIsDisplacementModalOpen(false);
+                      }
+                    }}
+                    className="btn-primary w-full h-12"
+                  >
+                    Salvar Deslocamento
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* End Journey Modal */}
         {isEndModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white">Encerrar Jornada</h3>
                   <button 
@@ -1104,7 +1269,7 @@ export default function DailyReport() {
                   Para finalizar sua jornada com o veículo <span className="font-bold text-slate-700 dark:text-slate-200">{vehicle?.model}</span>, informe os dados de encerramento.
                 </p>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Data Fim</label>
                     <div className="relative flex items-center">
@@ -1126,6 +1291,7 @@ export default function DailyReport() {
                         type="time"
                         value={endTime}
                         onChange={(e) => setEndTime(e.target.value)}
+                        step="60"
                       />
                     </div>
                   </div>
@@ -1189,8 +1355,8 @@ export default function DailyReport() {
         {/* Previous Journey Found Modal */}
         {isPreviousJourneyModalOpen && previousJourney && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-            <div className="bg-white dark:bg-slate-900 w-full max-sm:max-w-xs max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 w-full max-sm:max-w-xs max-w-sm rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-bold text-red-600">Jornada em Aberto</h3>
                   <button 
@@ -1219,7 +1385,7 @@ export default function DailyReport() {
                   Por favor, informe os dados de encerramento para finalizar a jornada anterior antes de iniciar uma nova.
                 </p>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Data Fim</label>
                     <div className="relative flex items-center">
@@ -1241,6 +1407,7 @@ export default function DailyReport() {
                         type="time"
                         value={endTime}
                         onChange={(e) => setEndTime(e.target.value)}
+                        step="60"
                       />
                     </div>
                   </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, History, Calendar, Zap, Fuel, Save, Info, Droplet, Fuel as FuelIcon, TrendingUp, Truck, X, CheckCircle2, MapPin, Download, AlertTriangle, Loader2 } from 'lucide-react';
+import Autocomplete from '../components/Autocomplete';
 import { cn } from '../utils';
 import { Journey, RefuelingRecord, User as UserType, Vehicle } from '../types';
 import { supabase } from '../lib/supabase';
@@ -67,11 +68,6 @@ export default function Refueling() {
         };
         setActiveJourney(journey);
         
-        // Set default odometer to journey start odometer
-        if (journey.startOdometer) {
-          setOdometer(journey.startOdometer.toString());
-        }
-
         // Set default date to journey start date
         if (journey.startTime) {
           setDate(journey.startTime.split('T')[0]);
@@ -110,7 +106,7 @@ export default function Refueling() {
   }, [navigate]);
 
   const vehicle = vehicles.find(v => v.id === activeJourney?.vehicleId);
-  const previousKM = lastRefueling?.odometer || vehicle?.lastOdometer || 0;
+  const previousKM = lastRefueling?.odometer || vehicle?.last_odometer || vehicle?.lastOdometer || 0;
   const averageConsumption = odometer && quantity && Number(quantity) > 0 
     ? (Number(odometer) - previousKM) / Number(quantity) 
     : 0;
@@ -119,6 +115,12 @@ export default function Refueling() {
     const errors: string[] = [];
     const kmValue = Number(odometer);
     const qtyValue = Number(quantity);
+
+    if (!activeJourney) {
+      setErrorMessages(['Você precisa estar em uma jornada ativa para registrar um abastecimento.']);
+      setIsErrorModalOpen(true);
+      return;
+    }
 
     if (!odometer || !quantity) {
       errors.push('Por favor, preencha o KM atual e a quantidade de litros.');
@@ -262,6 +264,12 @@ export default function Refueling() {
   }, [isHistoryModalOpen, activeJourney?.vehicleId, modalStartDate, modalEndDate]);
 
   const handleConfirmSave = async () => {
+    if (!activeJourney || !currentUser) {
+      setErrorMessages(['Sessão ou jornada inválida. Por favor, tente recarregar a página.']);
+      setIsErrorModalOpen(true);
+      return;
+    }
+
     setLoading(true);
     try {
       const refuelingPayload = {
@@ -269,8 +277,8 @@ export default function Refueling() {
         odometer: Number(odometer),
         quantity: Number(quantity),
         fuel_type: fuelType,
-        vehicle_id: activeJourney?.vehicleId || '',
-        user_id: currentUser?.id || '',
+        vehicle_id: activeJourney.vehicleId,
+        user_id: currentUser.id,
         location: location
       };
 
@@ -282,7 +290,9 @@ export default function Refueling() {
 
       // Update vehicle last_odometer if this is the newest
       const odoNum = Number(odometer);
-      const currentVal = vehicle?.vehicle_type === 'maquina' ? (vehicle.current_hourmeter || 0) : (vehicle?.current_odometer || vehicle?.lastOdometer || 0);
+      const currentVal = vehicle?.vehicle_type === 'maquina' 
+        ? (vehicle.current_hourmeter || 0) 
+        : (vehicle?.current_odometer || vehicle?.last_odometer || vehicle?.lastOdometer || 0);
       
       if (odoNum > currentVal) {
         const updatePayload: Record<string, number> = { last_odometer: odoNum };
@@ -356,16 +366,14 @@ export default function Refueling() {
 
           <div className="flex flex-col gap-2">
             <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Local de Abastecimento</label>
-            <div className="relative">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input
-                className="input-field pl-12"
-                placeholder="Ex: Posto Central"
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-              />
-            </div>
+            <Autocomplete
+              table="refuelings"
+              column="location"
+              placeholder="Ex: Posto Central"
+              defaultValue={location}
+              onSelect={(val) => setLocation(val)}
+              inputClassName="pl-12"
+            />
           </div>
 
           <div className="flex flex-col gap-2">
@@ -711,7 +719,7 @@ export default function Refueling() {
                   <div className="space-y-2">
                     <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Sucesso!</h3>
                     <p className="text-slate-500 dark:text-slate-400">
-                      O abastecimento foi registrado corretamente no sistema.
+                      abastecimento registrado
                     </p>
                   </div>
                   

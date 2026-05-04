@@ -17,15 +17,15 @@ Este documento descreve a arquitetura, o stack tecnológico e as regras de negó
 
 ## 2. Estrutura de Pastas
 - `/src/components`: Componentes reutilizáveis (Sidebar, etc.).
-- `/src/pages`: Páginas da aplicação (Dashboard, Login, DailyReport, Users, etc.).
+- `/src/pages`: Páginas da aplicação (Dashboard, Login, DailyReport, etc.).
 - `/src/lib`: Configurações de bibliotecas externas (Supabase).
 - `/supabase/migrations`: Scripts SQL de migrations (fonte de verdade do schema).
 - `/src/types.ts`: Definições de interfaces TypeScript.
-- `/src/utils.ts`: Funções utilitárias e dados mock para seed.
+- `/src/utils.ts`: Funções utilitárias.
 
 ---
 
-## 3. Papéis de Usuário (Roles)
+## 3. Regras de Negócio por Tabela (Entidade)
 
 | Role | Descrição | Como é criado |
 |---|---|---|
@@ -60,58 +60,52 @@ A documentação completa de todas as tabelas, colunas, tipos, valores permitido
 - **Inserção:** Ocorre via trigger `handle_new_user()` do Supabase Auth ao criar um usuário.
 - **Regras:**
     - `cpf`: Deve ser único e conter exatamente 11 dígitos numéricos.
-    - `role`: Deve ser obrigatoriamente `'Root'`, `'Admin'` ou `'Operador'`.
+    - `role`: Deve ser obrigatoriamente 'Admin' ou 'Motorista'.
     - `id`: Deve ser o UUID gerado pelo Supabase Auth.
-    - `invited_by`: UUID do usuário que enviou o convite (nullable).
-- **Trigger `handle_new_user()`:** Usa `COALESCE` para garantir que `name` e `role` nunca sejam nulos (fallback: parte do e-mail e `'Operador'` respectivamente).
 
-### 4.2. Tabela `invites`
-- **Campos:** `id`, `token` (UUID único), `invited_by`, `role`, `used`, `used_by`, `created_at`, `expires_at`.
-- **Validade:** 7 dias a partir da criação.
-- **Uso único:** Após utilizado, `used = true` e `used_by` é preenchido com o UUID do novo usuário.
-
-### 4.3. Tabela `vehicles` (Veículos e Máquinas)
+### 3.2. Tabela `vehicles` (Veículos e Máquinas)
 - **Regras:**
     - `plate`: Deve ser única.
-    - `vehicle_type`: `'veiculo'` (usa odômetro) ou `'maquina'` (usa horímetro).
-    - `last_odometer`: Deve ser atualizado sempre que uma jornada, abastecimento ou manutenção registrar um valor superior ao atual.
+    - `vehicle_type`: 'veiculo' (usa odômetro) ou 'maquina' (usa horímetro).
+    - `last_odometer`: Deve ser atualizado sempre que uma jornada, abastecimento ou manutenção registrar um valor superior ao atual. Esta regra aplica-se a todos os tipos de veículos (`veiculo` e `maquina`). No caso de máquinas, este campo armazena o valor do horímetro para fins de comparação global de "último registro".
     - `current_odometer`: Armazena a quilometragem atual para veículos do tipo `veiculo`.
     - `current_hourmeter`: Armazena o horímetro atual para veículos do tipo `maquina`.
     - `initial_odometer` / `initial_hourmeter`: Valores de referência no cadastro.
 
-### 4.4. Tabela `journeys` (Jornadas / Parte Diária)
+### 3.3. Tabela `journeys` (Jornadas / Parte Diária)
 - **Regras de Inserção (Status 'aberta'):**
-    - **Concorrência de Usuário:** Um usuário não pode iniciar uma jornada se já possuir outra com status `'aberta'`.
-    - **Concorrência de Veículo:** Um veículo não pode ser utilizado se já estiver vinculado a uma jornada `'aberta'` de outro usuário.
-    - **Validação de KM/Horímetro Inicial:** O `start_odometer` deve ser maior ou igual ao `current_odometer` ou `current_hourmeter` do veículo.
+    - **Concorrência de Usuário:** Um usuário não pode iniciar uma jornada se já possuir outra com status 'aberta'.
+    - **Concorrência de Veículo:** Um veículo não pode ser utilizado se já estiver vinculado a uma jornada 'aberta' de outro usuário.
+    - **Validação de KM/Horímetro Inicial:** O `start_odometer` deve ser maior ou igual ao `current_odometer` (para veículos) ou `current_hourmeter` (para máquinas) do veículo na tabela `vehicles`.
 - **Regras de Atualização (Status 'encerrada'):**
     - **Validação de KM/Horímetro Final:** O `end_odometer` deve ser estritamente maior que o `start_odometer`.
-    - **Consistência de Dados:** O `end_odometer` não pode ser menor que o maior valor registrado em abastecimentos ou manutenções da jornada.
-    - **Atualização do Veículo:** Ao encerrar, `current_odometer` ou `current_hourmeter` do veículo é atualizado para o valor do `end_odometer`.
+    - **Consistência de Dados:** O `end_odometer` não pode ser menor que o maior odômetro/horímetro registrado em abastecimentos ou manutenções realizados durante o período da jornada.
+    - **Atualização do Veículo:** Ao encerrar, o `current_odometer` ou `current_hourmeter` do veículo deve ser atualizado para o valor do `end_odometer`, e o `last_odometer` deve ser atualizado se o valor for superior.
 
-### 4.5. Tabela `refuelings` (Abastecimentos)
+### 3.4. Tabela `refuelings` (Abastecimentos)
 - **Regras:**
-    - `odometer`: Deve ser registrado no momento do abastecimento.
+    - `odometer`: Deve ser registrado no momento do abastecimento (ou horímetro para máquinas).
     - `vehicle_id`: Deve ser um UUID válido de um veículo existente.
-    - **Atualização do Veículo:** Se o odômetro/horímetro for maior que o atual do veículo, este deve ser atualizado.
+    - **Atualização do Veículo:** Se o odômetro/horímetro do abastecimento for maior que o atual do veículo (`current_odometer` ou `current_hourmeter`), este deve ser atualizado, assim como o `last_odometer`.
 
-### 4.6. Tabela `maintenance_requests` (Solicitações)
-- **Fluxo de Status:** `pendente` → `aprovada` (gera registro em `maintenances`) → `concluida`.
+### 3.5. Tabela `maintenance_requests` (Solicitações)
+- **Fluxo de Status:** `pendente` -> `aprovada` (gera registro em `maintenances`) -> `concluida`.
 - **Regras:**
-    - Operadores podem criar solicitações apenas para o veículo que estão operando no momento (jornada aberta).
+    - Motoristas podem criar solicitações apenas para o veículo que estão operando no momento (jornada aberta).
 
-### 4.7. Tabela `maintenances` (Registros de Manutenção)
+### 3.6. Tabela `maintenances` (Registros de Manutenção)
 - **Regras:**
-    - `status`: `'pendente'` (autorizada, não executada), `'executada'`, `'cancelada'`.
-    - **Atualização do Veículo:** Ao marcar como `'executada'`, se o `mileage` for superior ao atual do veículo, o registro é atualizado.
+    - `status`: 'pendente' (autorizada mas não executada), 'executada' (serviço concluído), 'cancelada'.
+    - **Atualização do Veículo:** Ao marcar como 'executada', se o `mileage` (KM ou Horímetro da manutenção) for superior ao atual do veículo (`current_odometer` ou `current_hourmeter`), o registro do veículo deve ser atualizado, assim como o `last_odometer`.
 
 ---
 
 ## 6. Autenticação e Segurança
 - O sistema utiliza o **Supabase Auth**.
-- O login usa o **CPF** como identificador primário (mapeado internamente para `cpf@fleetmanager.com` ou e-mail real vinculado ao CPF na tabela `profiles`).
-- **Cadastro:** Não há cadastro público. Todo acesso é feito via **link de convite** gerado por Root ou Admin na página `/users`.
-- **A interface `User` em `types.ts` não contém o campo `password`.** Senhas nunca devem trafegar ou ser armazenadas no frontend.
+- O login é baseado em e-mail e senha, mas a interface utiliza o **CPF** como identificador primário (mapeando internamente para um e-mail no formato `cpf@fleetmanager.com` ou buscando o e-mail real vinculado ao CPF na tabela `profiles`).
+- **Níveis de Acesso:**
+    - `Admin`: Acesso total (Dashboard, Relatórios, Gestão de Manutenção).
+    - `Motorista`: Acesso restrito à Parte Diária e Perfil.
 
 ---
 

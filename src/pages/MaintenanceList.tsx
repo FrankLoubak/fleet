@@ -11,6 +11,7 @@ import Sidebar from '../components/Sidebar';
 import { cn } from '../utils';
 import { User as UserType, Vehicle, MaintenanceRecord, MaintenanceRequest, MaintenanceType } from '../types';
 import { supabase } from '../lib/supabase';
+import { toast } from 'react-hot-toast';
 
 type ViewMode = 'executadas' | 'autorizadas' | 'pendentes' | 'canceladas';
 
@@ -175,8 +176,6 @@ export default function MaintenanceList() {
         total_value: request.budgetValue || 0,
         status: 'pendente',
         provider: 'A definir',
-        // User asked to fill columns EXCEPT date and mileage from request_id data.
-        // However, these are likely required in DB. Using request values as defaults.
         date: request.date,
         mileage: request.odometer
       };
@@ -187,7 +186,7 @@ export default function MaintenanceList() {
 
       if (insertError) throw insertError;
 
-      alert('Solicitação autorizada com sucesso!');
+      toast.success('Solicitação autorizada com sucesso!');
       fetchData();
     } catch (err) {
       alert('Erro ao autorizar solicitação.');
@@ -315,7 +314,7 @@ export default function MaintenanceList() {
         if (error) throw error;
       }
 
-      alert('Registro atualizado com sucesso!');
+      toast.success('Registro atualizado com sucesso!');
       setIsEditModalOpen(false);
       fetchData();
     } catch (err) {
@@ -430,24 +429,24 @@ export default function MaintenanceList() {
     if (!file) return;
 
     if (file.type !== 'application/pdf') {
-      alert('Por favor, selecione apenas arquivos PDF.');
+      toast.error('Por favor, selecione apenas arquivos PDF.');
       return;
     }
 
     setLoading(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `maintenance-docs/${fileName}`;
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+      const filePath = `admin-uploads/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('documents')
+        .from('maintenance_documents')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('documents')
+        .from('maintenance_documents')
         .getPublicUrl(filePath);
 
       setEditForm({ ...editForm, documentUrl: publicUrl });
@@ -711,6 +710,11 @@ export default function MaintenanceList() {
                           <td className="px-6 py-4">
                             <p className="text-sm text-slate-500 max-w-xs truncate" title={m.description}>{m.description}</p>
                           </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm font-bold text-slate-900 dark:text-white">
+                              {m.totalValue ? `R$ ${m.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '---'}
+                            </span>
+                          </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-2">
                               {m.status === 'pendente' && (
@@ -749,7 +753,7 @@ export default function MaintenanceList() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={7} className="px-6 py-12 text-center text-slate-500">Nenhum registro encontrado</td>
+                        <td colSpan={9} className="px-6 py-12 text-center text-slate-500">Nenhum registro encontrado</td>
                       </tr>
                     )
                   ) : (
@@ -821,7 +825,7 @@ export default function MaintenanceList() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-slate-500">Nenhuma solicitação pendente</td>
+                        <td colSpan={7} className="px-6 py-12 text-center text-slate-500">Nenhuma solicitação pendente</td>
                       </tr>
                     )
                   )}
