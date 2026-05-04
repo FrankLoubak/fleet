@@ -77,16 +77,15 @@ export default function TimeBank() {
 
       setRecords(normalizedRecords);
 
-      // Calculate total hours
+      // Calculate total hours from decimal values
       let totalMins = 0;
       normalizedRecords.forEach(r => {
-        const [h, m] = r.horas_adquiridas.split(':').map(Number);
-        totalMins += (h * 60) + m;
+        totalMins += Math.round(Number(r.horas_adquiridas) * 60);
       });
 
       const totalH = Math.floor(totalMins / 60);
       const totalM = totalMins % 60;
-      setTotalHours(`${totalH.toString().padStart(2, '0')}:${totalM.toString().padStart(2, '0')}`);
+      setTotalHours(`${totalH.toString().padStart(2, '0')}h ${totalM.toString().padStart(2, '0')}min`);
 
     } catch (err) {
     } finally {
@@ -282,7 +281,12 @@ export default function TimeBank() {
                           <div className="flex items-center gap-2">
                             <div className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-sm font-bold flex items-center gap-1.5">
                               <ArrowUpRight size={14} />
-                              <span>{record.horas_adquiridas}</span>
+                              <span>{(() => {
+                                const totalMin = Math.round(Number(record.horas_adquiridas) * 60);
+                                const h = Math.floor(totalMin / 60);
+                                const m = totalMin % 60;
+                                return `${h}h ${m.toString().padStart(2, '0')}min`;
+                              })()}</span>
                             </div>
                           </div>
                         </td>

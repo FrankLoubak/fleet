@@ -68,6 +68,8 @@ export default function Journeys() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isOdometerErrorModalOpen, setIsOdometerErrorModalOpen] = useState(false);
   const [lastOdometerValue, setLastOdometerValue] = useState(0);
+  const [journeyToValidate, setJourneyToValidate] = useState<Journey | null>(null);
+  const [isValidationConfirmModalOpen, setIsValidationConfirmModalOpen] = useState(false);
 
   const exportFuelingsToCSV = () => {
     if (!selectedVehicleForDetails || vehicleFuelings.length === 0) return;
@@ -203,7 +205,10 @@ export default function Journeys() {
         status: j.status,
         observations: j.observations,
         validation_status: j.validation_status,
-        validated_by: j.validated_by
+        validated_by: j.validated_by,
+        horasExcedentes: j.horas_excedentes || 0,
+        intervalIni: j.interval_ini || '',
+        intervalFim: j.interval_fim || ''
       }));
 
       setJourneys(normalizedJourneys);
@@ -234,44 +239,30 @@ export default function Journeys() {
     if (!currentUser) return;
     setLoading(true);
     try {
-      // Calculate excess time
-      const startTime = new Date(journey.startTime);
-      const endTime = new Date(journey.endTime!);
-      const durationMs = endTime.getTime() - startTime.getTime();
-      const eightHoursMs = 8 * 60 * 60 * 1000;
-      
-      const excessMs = Math.max(0, durationMs - eightHoursMs);
-      const excessHrs = Math.floor(excessMs / (1000 * 60 * 60));
-      const excessMins = Math.floor((excessMs % (1000 * 60 * 60)) / (1000 * 60));
-      const formattedExcess = `${excessHrs.toString().padStart(2, '0')}:${excessMins.toString().padStart(2, '0')}`;
-
-      // 1. Update journey status
       const { error: jError } = await supabase
         .from('journeys')
-        .update({
-          validation_status: 'validada',
-          validated_by: currentUser.id
-        })
+        .update({ validation_status: 'validada', validated_by: currentUser.id })
         .eq('id', journey.id);
 
       if (jError) throw jError;
 
-      // 2. Insert into banco_de_horas if there's excess time
-      if (excessMs > 0) {
+      // Insere no banco_de_horas apenas se há excedente registrado na jornada
+      const excedente = journey.horasExcedentes || 0;
+      if (excedente > 0) {
         const { error: bError } = await supabase
           .from('banco_de_horas')
           .insert([{
             user_id: journey.userId,
             journey_id: journey.id,
-            horas_adquiridas: formattedExcess
+            horas_adquiridas: excedente
           }]);
-        
         if (bError) throw bError;
       }
 
       await loadData();
-    } catch (_err) {
-      alert('Erro ao validar jornada. Verifique sua conexão e tente novamente.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`Erro ao validar jornada: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -334,7 +325,63 @@ export default function Journeys() {
     try {
       const startTimeStr = `${formData.startDate}T${formData.startTime}`;
       const endTimeStr = formData.endDate && formData.endTime ? `${formData.endDate}T${formData.endTime}` : null;
-      
+
+      // Regra 2: encerramento não pode ser no futuro
+      if (formData.status === 'encerrada' && endTimeStr && new Date(endTimeStr) > new Date()) {
+        alert('O horário de encerramento não pode ser no futuro.');
+        setLoading(false);
+        return;
+      }
+
+      // Regra 1: sobreposição de jornadas para o mesmo motorista
+      if (formData.userId && endTimeStr) {
+        let overlapQuery = supabase
+          .from('journeys')
+          .select('id, start_time, end_time, status')
+          .eq('user_id', formData.userId)
+          .lt('start_time', endTimeStr)
+          .not('end_time', 'is', null)
+          .gt('end_time', startTimeStr);
+
+        if (editingJourney) {
+          overlapQuery = overlapQuery.neq('id', editingJourney.id);
+        }
+
+        const { data: overlapData, error: overlapErr } = await overlapQuery.limit(1);
+        if (overlapErr) throw overlapErr;
+
+        if (overlapData && overlapData.length > 0) {
+          const oj = overlapData[0];
+          const fmtS = new Date(oj.start_time).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+          const fmtE = new Date(oj.end_time).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+          alert(`Sobreposição de jornada: este motorista já possui jornada entre ${fmtS} e ${fmtE}.`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const isRetroactive = formData.startDate < today;
+
+      let horasExcedentes = 0;
+      if (formData.status === 'encerrada' && endTimeStr) {
+        const startD = new Date(startTimeStr);
+        const endD = new Date(endTimeStr);
+        let durationMs = endD.getTime() - startD.getTime();
+        const iniInterval = editingJourney?.intervalIni || '';
+        const fimInterval = editingJourney?.intervalFim || '';
+        if (iniInterval && fimInterval) {
+          const [iniH, iniM] = iniInterval.split(':').map(Number);
+          const [fimH, fimM] = fimInterval.split(':').map(Number);
+          const intervaloMs = ((fimH * 60 + fimM) - (iniH * 60 + iniM)) * 60 * 1000;
+          if (intervaloMs > 0) durationMs -= intervaloMs;
+        }
+        const eightHoursMs = 8 * 60 * 60 * 1000;
+        horasExcedentes = durationMs > eightHoursMs
+          ? Math.round(((durationMs - eightHoursMs) / 3600000) * 100) / 100
+          : 0;
+      }
+
       const journeyPayload = {
         user_id: formData.userId,
         vehicle_id: formData.vehicleId,
@@ -346,7 +393,11 @@ export default function Journeys() {
         end_odometer: formData.status === 'encerrada' ? Number(formData.endOdometer) : null,
         distance_traveled: formData.status === 'encerrada' ? Number(formData.endOdometer) - Number(formData.startOdometer) : null,
         status: formData.status,
-        observations: formData.observations
+        observations: formData.observations,
+        horas_excedentes: formData.status === 'encerrada' ? horasExcedentes : null,
+        validation_status: formData.status === 'encerrada'
+          ? ((horasExcedentes > 0 || isRetroactive) ? 'pendente' : 'validada')
+          : (isRetroactive ? 'pendente' : null)
       };
 
       if (editingJourney) {
@@ -854,8 +905,8 @@ export default function Journeys() {
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {journey.status === 'encerrada' && journey.validation_status === 'pendente' && (
-                            <button 
-                              onClick={() => handleValidateJourney(journey)}
+                            <button
+                              onClick={() => { setJourneyToValidate(journey); setIsValidationConfirmModalOpen(true); }}
                               className="p-2 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors text-green-600 dark:text-green-400"
                               title="Validar Jornada"
                             >
@@ -1009,6 +1060,76 @@ export default function Journeys() {
             </div>
           </div>
         )}
+
+        {/* Validation Confirm Modal */}
+        {isValidationConfirmModalOpen && journeyToValidate && (() => {
+          const todayStr = new Date().toISOString().split('T')[0];
+          const jDate = journeyToValidate.startTime.split('T')[0];
+          const isRetro = jDate < todayStr;
+          const excedente = journeyToValidate.horasExcedentes || 0;
+          const exH = Math.floor(excedente);
+          const exM = Math.round((excedente - exH) * 60);
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="p-6 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-full flex items-center justify-center shrink-0">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Confirmar Validação</h3>
+                  </div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    {users.find(u => u.id === journeyToValidate.userId)?.name || 'Motorista'} — {new Date(journeyToValidate.startTime).toLocaleDateString('pt-BR')}
+                  </p>
+                  <div className="space-y-2">
+                    {excedente > 0 && (
+                      <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-xl">
+                        <Clock size={16} className="text-amber-600 shrink-0" />
+                        <span className="text-sm font-bold text-amber-800 dark:text-amber-400">
+                          Validar {exH}h {exM.toString().padStart(2, '0')}min de horas excedentes?
+                        </span>
+                      </div>
+                    )}
+                    {isRetro && (
+                      <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-900/30 rounded-xl">
+                        <Calendar size={16} className="text-blue-600 shrink-0" />
+                        <span className="text-sm font-bold text-blue-800 dark:text-blue-400">
+                          Validar data retroativa ({new Date(journeyToValidate.startTime).toLocaleDateString('pt-BR')})?
+                        </span>
+                      </div>
+                    )}
+                    {excedente === 0 && !isRetro && (
+                      <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                        <CheckCircle2 size={16} className="text-slate-400 shrink-0" />
+                        <span className="text-sm text-slate-600 dark:text-slate-400">Confirmar validação desta jornada</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => { setIsValidationConfirmModalOpen(false); setJourneyToValidate(null); }}
+                      className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => {
+                        const j = journeyToValidate;
+                        setIsValidationConfirmModalOpen(false);
+                        setJourneyToValidate(null);
+                        handleValidateJourney(j);
+                      }}
+                      className="flex-1 py-2.5 rounded-xl bg-green-600 text-white text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-600/20"
+                    >
+                      Confirmar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Delete Modal */}
         {isDeleteModalOpen && (

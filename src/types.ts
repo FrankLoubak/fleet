@@ -97,12 +97,15 @@ export interface Journey {
   observations?: string;
   validation_status?: 'pendente' | 'validada';
   validated_by?: string;
+  horasExcedentes?: number;
+  intervalIni?: string;
+  intervalFim?: string;
 }
 
 export interface BancoDeHoras {
   id: string;
   userId: string;
   journeyId: string;
-  horasAdquiridas: string; // Format "HH:MM"
+  horasAdquiridas: number; // decimal hours e.g. 2.58
   createdAt: string;
 }
