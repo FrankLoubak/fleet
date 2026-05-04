@@ -74,7 +74,7 @@ export default function MaintenanceList() {
       return;
     }
     const user = JSON.parse(userJson);
-    if (user.role !== 'Admin') {
+    if (user.role !== 'Admin' && user.role !== 'Root') {
       navigate('/daily-report');
       return;
     }

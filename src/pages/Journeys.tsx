@@ -158,7 +158,7 @@ export default function Journeys() {
         return;
       }
       const user = JSON.parse(userJson);
-      if (user.role !== 'Admin') {
+      if (user.role !== 'Admin' && user.role !== 'Root') {
         navigate('/daily-report');
         return;
       }
