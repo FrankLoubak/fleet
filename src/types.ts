@@ -63,10 +63,10 @@ export interface User {
   name: string;
   email: string;
   cpf: string;
-  password?: string;
-  role: 'Root' | 'Admin' | 'Motorista' | 'Gestor Frota';
+  role: 'Root' | 'Admin' | 'Operador';
   avatar?: string;
   phone?: string;
+  invited_by?: string;
 }
 
 /**
@@ -95,13 +95,6 @@ export interface Journey {
   distanceTraveled?: number;
   status: 'aberta' | 'encerrada';
   observations?: string;
-  start_location?: string;
-  destination?: string;
-  end_location?: string;
-  interval_ini?: string;
-  interval_fim?: string;
-  tipo_transp?: string;
-  driverName?: string;
   validation_status?: 'pendente' | 'validada';
   validated_by?: string;
   horasExcedentes?: number;
