@@ -434,13 +434,26 @@ export default function DailyReport() {
       const endTimeStr = `${endDate}T${endTime}`;
       const dist = endOdom - startOdom;
 
-      // Calcula duração para determinar se precisa de validação do gestor
       const startTimeDate = new Date(currentJourney!.startTime);
       const endTimeDate = new Date(endTimeStr);
       const durationMs = endTimeDate.getTime() - startTimeDate.getTime();
       const eightHoursMs = 8 * 60 * 60 * 1000;
 
-      const needsValidation = durationMs > eightHoursMs;
+      // Calcula intervalo em ms (se informado)
+      let intervaloMs = 0;
+      if (intervalIni && intervalFim) {
+        const [iniH, iniM] = intervalIni.split(':').map(Number);
+        const [fimH, fimM] = intervalFim.split(':').map(Number);
+        const iniTotalMin = iniH * 60 + iniM;
+        const fimTotalMin = fimH * 60 + fimM;
+        if (fimTotalMin > iniTotalMin) {
+          intervaloMs = (fimTotalMin - iniTotalMin) * 60 * 1000;
+        }
+      }
+
+      // Tempo efetivo = jornada total - intervalo
+      const tempoEfetivoMs = durationMs - intervaloMs;
+      const needsValidation = tempoEfetivoMs > eightHoursMs;
       const validationStatus = needsValidation ? 'pendente' : 'validada';
 
       const { error } = await supabase
@@ -474,6 +487,21 @@ export default function DailyReport() {
         .eq('id', currentJourney!.vehicleId);
 
       if (vError) throw vError;
+
+      // Insere horas excedentes no banco de horas se tempo efetivo > 8h
+      if (tempoEfetivoMs > eightHoursMs) {
+        const excedenteMs = tempoEfetivoMs - eightHoursMs;
+        const excedenteTotalMin = Math.floor(excedenteMs / 60000);
+        const hh = String(Math.floor(excedenteTotalMin / 60)).padStart(2, '0');
+        const mm = String(excedenteTotalMin % 60).padStart(2, '0');
+        const horasAdquiridas = `${hh}:${mm}`;
+
+        await supabase.from('banco_de_horas').insert({
+          user_id: currentUser!.id,
+          journey_id: currentJourney!.id,
+          horas_adquiridas: horasAdquiridas
+        });
+      }
 
       // Limpa estado local
       setCurrentJourney(null);
