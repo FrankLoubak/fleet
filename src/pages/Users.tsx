@@ -69,7 +69,7 @@ export default function UsersPage() {
       if (error) throw error;
 
       // Buscar nomes dos inviters
-      const inviterIds = [...new Set((data || []).map((p: any) => p.invited_by).filter(Boolean))];
+      const inviterIds = [...new Set((data || []).map((p: Omit<Profile, 'inviter_name'>) => p.invited_by).filter(Boolean))];
       let inviterMap: Record<string, string> = {};
 
       if (inviterIds.length > 0) {
@@ -79,20 +79,19 @@ export default function UsersPage() {
           .in('id', inviterIds);
 
         if (inviters) {
-          inviters.forEach((inv: any) => {
+          inviters.forEach((inv: { id: string; name: string }) => {
             inviterMap[inv.id] = inv.name;
           });
         }
       }
 
-      const enriched: Profile[] = (data || []).map((p: any) => ({
+      const enriched: Profile[] = (data || []).map((p: Omit<Profile, 'inviter_name'>) => ({
         ...p,
         inviter_name: p.invited_by ? inviterMap[p.invited_by] || p.invited_by : undefined,
       }));
 
       setProfiles(enriched);
-    } catch (err: any) {
-      console.error('Erro ao buscar perfis:', err);
+    } catch (err: unknown) {
     } finally {
       setLoadingProfiles(false);
     }
@@ -132,9 +131,9 @@ export default function UsersPage() {
 
       const link = `${window.location.origin}/login?token=${token}`;
       setModal(prev => ({ ...prev, loading: false, generatedLink: link }));
-    } catch (err: any) {
-      console.error('Erro ao gerar convite:', err);
-      setModal(prev => ({ ...prev, loading: false, error: err.message || 'Erro ao gerar convite.' }));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao gerar convite.';
+      setModal(prev => ({ ...prev, loading: false, error: message }));
     }
   };
 

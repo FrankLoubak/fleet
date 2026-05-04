@@ -48,7 +48,6 @@ export default function Refueling() {
         .limit(1);
 
       if (jError) {
-        console.error('Error fetching active journey:', jError);
         return;
       }
 
@@ -84,7 +83,6 @@ export default function Refueling() {
           .select('*');
         
         if (vError) {
-          console.error('Error fetching vehicles:', vError);
         } else {
           setVehicles(vehiclesData || []);
         }
@@ -98,7 +96,6 @@ export default function Refueling() {
           .limit(1);
 
         if (rError) {
-          console.error('Error fetching last refueling:', rError);
         } else if (lastRef && lastRef.length > 0) {
           const r = lastRef[0];
           setLastRefueling({
@@ -256,7 +253,6 @@ export default function Refueling() {
 
           setVehicleHistory(filtered);
         } catch (err) {
-          console.error('Error fetching history:', err);
         } finally {
           setLoading(false);
         }
@@ -289,7 +285,7 @@ export default function Refueling() {
       const currentVal = vehicle?.vehicle_type === 'maquina' ? (vehicle.current_hourmeter || 0) : (vehicle?.current_odometer || vehicle?.lastOdometer || 0);
       
       if (odoNum > currentVal) {
-        const updatePayload: any = { last_odometer: odoNum };
+        const updatePayload: Record<string, number> = { last_odometer: odoNum };
         if (vehicle?.vehicle_type === 'maquina') {
           updatePayload.current_hourmeter = odoNum;
         } else {
@@ -300,14 +296,13 @@ export default function Refueling() {
           .from('vehicles')
           .update(updatePayload)
           .eq('id', activeJourney?.vehicleId);
-        if (vError) console.error('Error updating vehicle odometer/hourmeter:', vError);
       }
 
       setIsConfirmModalOpen(false);
       setIsSuccessModalOpen(true);
-    } catch (err: any) {
-      console.error('Error saving refueling:', err);
-      setErrorMessages([err.message || 'Não foi possível salvar o registro de abastecimento. Verifique sua conexão e tente novamente.']);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Não foi possível salvar o registro de abastecimento. Verifique sua conexão e tente novamente.';
+      setErrorMessages([message]);
       setIsErrorModalOpen(true);
     } finally {
       setLoading(false);

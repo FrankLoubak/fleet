@@ -5,6 +5,88 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Remove todos os caracteres não numéricos de um CPF.
+ * Exemplo: "123.456.789-09" → "12345678909"
+ */
+export function cleanCpf(cpf: string): string {
+  return cpf.replace(/\D/g, '');
+}
+
+/**
+ * Valida se um CPF (já limpo ou formatado) tem exatamente 11 dígitos.
+ * Não verifica o dígito verificador — apenas o comprimento.
+ */
+export function isCpfLengthValid(cpf: string): boolean {
+  return cleanCpf(cpf).length === 11;
+}
+
+/**
+ * Constrói o e-mail de autenticação a partir do CPF limpo.
+ * Padrão do FleetManager: `{cpf}@fleetmanager.com`
+ */
+export function cpfToEmail(cpf: string): string {
+  return `${cleanCpf(cpf)}@fleetmanager.com`;
+}
+
+/**
+ * Formata minutos totais para o formato "HH:MM".
+ * Exemplo: 90 → "01:30"
+ */
+export function minutesToHHMM(totalMinutes: number): string {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Converte uma string no formato "HH:MM" para o total de minutos.
+ * Exemplo: "01:30" → 90
+ */
+export function hhmmToMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+/**
+ * Soma um array de strings no formato "HH:MM" e retorna o total em "HH:MM".
+ * Exemplo: ["01:30", "00:45"] → "02:15"
+ */
+export function sumHours(hours: string[]): string {
+  const totalMinutes = hours.reduce((acc, hhmm) => acc + hhmmToMinutes(hhmm), 0);
+  return minutesToHHMM(totalMinutes);
+}
+
+/**
+ * Formata uma data ISO para o formato brasileiro (DD/MM/YYYY).
+ * Exemplo: "2026-05-01" → "01/05/2026"
+ */
+export function formatDateBR(isoDate: string): string {
+  const [year, month, day] = isoDate.split('T')[0].split('-');
+  return `${day}/${month}/${year}`;
+}
+
+/**
+ * Retorna o label em português para o role do usuário.
+ */
+export function roleLabel(role: 'Root' | 'Admin' | 'Operador'): string {
+  const labels: Record<string, string> = {
+    Root: 'Root',
+    Admin: 'Administrador',
+    Operador: 'Operador',
+  };
+  return labels[role] ?? role;
+}
+
+/**
+ * Calcula a distância percorrida entre dois odômetros.
+ * Retorna 0 se o valor final for menor ou igual ao inicial.
+ */
+export function calcDistance(startOdometer: number, endOdometer: number): number {
+  if (endOdometer <= startOdometer) return 0;
+  return endOdometer - startOdometer;
+}
+
 export const MOCK_VEHICLES = [
   { id: '1', plate: 'ABC-1234', model: 'Toyota Hilux', prefix: 'FT-089', lastOdometer: 125000 },
   { id: '2', plate: 'XYZ-9876', model: 'VW Gol', prefix: 'FT-042', lastOdometer: 45200 },

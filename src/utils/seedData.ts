@@ -1,11 +1,11 @@
-import { Journey, RefuelingRecord, MaintenanceRecord, User, Vehicle, MaintenanceType } from '../types';
+import { Journey, RefuelingRecord, MaintenanceRecord, MaintenanceRequest, User, Vehicle, MaintenanceType } from '../types';
 import { MOCK_VEHICLES, MOCK_USERS, MOCK_PROVIDERS } from '../utils';
 
 export function generateSeedData() {
   const journeys: Journey[] = [];
   const refuelings: RefuelingRecord[] = [];
   const maintenances: MaintenanceRecord[] = [];
-  const maintenanceRequests: any[] = [];
+  const maintenanceRequests: MaintenanceRequest[] = [];
   
   const drivers = MOCK_USERS.filter(u => u.role === 'Operador');
   const vehicles = [...MOCK_VEHICLES];

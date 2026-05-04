@@ -69,6 +69,19 @@ export interface User {
   invited_by?: string;
 }
 
+/**
+ * Subconjunto mínimo do usuário autenticado armazenado no localStorage.
+ * Usado pelo fluxo de autenticação e proteção de rotas.
+ * Relação com User: AuthUser contém apenas os campos essenciais de sessão;
+ * User é o perfil completo lido da tabela profiles do Supabase.
+ */
+export interface AuthUser {
+  id: string;
+  cpf: string;
+  name: string;
+  role: 'Root' | 'Admin' | 'Operador';
+}
+
 export interface Journey {
   id: string;
   userId: string;

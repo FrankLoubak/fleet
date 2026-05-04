@@ -56,7 +56,6 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
           
         setAlertCount((pendingReqCount || 0) + (overdueMainCount || 0) + (pendingJourneysCount || 0));
       } catch (err) {
-        console.error('Error fetching alerts for sidebar:', err);
       }
     };
     
@@ -80,7 +79,8 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     };
   }, [isProfileOpen]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem('fleet_user');
     navigate('/login');
   };

@@ -31,6 +31,11 @@ import { cn } from '../utils';
 import { User as UserType, Journey, Vehicle, RefuelingRecord, MaintenanceRecord } from '../types';
 import { supabase } from '../lib/supabase';
 
+// Extensão de RefuelingRecord com consumo médio calculado por período
+interface FuelingWithConsumption extends RefuelingRecord {
+  averageConsumption: number;
+}
+
 export default function Journeys() {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
@@ -55,7 +60,7 @@ export default function Journeys() {
   }>({ refuelings: 0, maintenances: 0, maintenanceRequests: 0 });
   const [isCheckingAssociated, setIsCheckingAssociated] = useState(false);
   const [selectedVehicleForDetails, setSelectedVehicleForDetails] = useState<Vehicle | null>(null);
-  const [vehicleFuelings, setVehicleFuelings] = useState<RefuelingRecord[]>([]);
+  const [vehicleFuelings, setVehicleFuelings] = useState<FuelingWithConsumption[]>([]);
   const [vehicleMaintenances, setVehicleMaintenances] = useState<MaintenanceRecord[]>([]);
   const [modalStartDate, setModalStartDate] = useState('');
   const [modalEndDate, setModalEndDate] = useState('');
@@ -121,7 +126,18 @@ export default function Journeys() {
     document.body.removeChild(link);
   };
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    userId: string;
+    vehicleId: string;
+    startDate: string;
+    startTime: string;
+    endDate: string;
+    endTime: string;
+    startOdometer: number;
+    endOdometer: number;
+    status: 'aberta' | 'encerrada';
+    observations: string;
+  }>({
     userId: '',
     vehicleId: '',
     startDate: '',
@@ -130,7 +146,7 @@ export default function Journeys() {
     endTime: '',
     startOdometer: 0,
     endOdometer: 0,
-    status: 'encerrada' as 'aberta' | 'encerrada',
+    status: 'encerrada',
     observations: ''
   });
 
@@ -207,8 +223,8 @@ export default function Journeys() {
         avatar: p.avatar_url
       }));
       setUsers(normalizedUsers);
-    } catch (err) {
-      console.error('Error loading journeys data:', err);
+    } catch (_err) {
+      // Falha ao carregar dados de jornadas — mantém estado anterior
     } finally {
       setLoading(false);
     }
@@ -254,9 +270,8 @@ export default function Journeys() {
       }
 
       await loadData();
-    } catch (err) {
-      console.error('Error validating journey:', err);
-      alert('Erro ao validar jornada.');
+    } catch (_err) {
+      alert('Erro ao validar jornada. Verifique sua conexão e tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -298,13 +313,19 @@ export default function Journeys() {
   const handleSaveJourney = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Odometer validation for new journeys
+    // Validação de odômetro/horímetro inicial para novas jornadas
     if (!editingJourney) {
       const vehicle = vehicles.find(v => v.id === formData.vehicleId);
-      if (vehicle && Number(formData.startOdometer) < vehicle.lastOdometer) {
-        setLastOdometerValue(vehicle.lastOdometer);
-        setIsOdometerErrorModalOpen(true);
-        return;
+      if (vehicle) {
+        const isMaquina = vehicle.vehicle_type === 'maquina';
+        const minValue = isMaquina
+          ? (vehicle.current_hourmeter || vehicle.lastOdometer || 0)
+          : (vehicle.current_odometer || vehicle.lastOdometer || 0);
+        if (Number(formData.startOdometer) < minValue) {
+          setLastOdometerValue(minValue);
+          setIsOdometerErrorModalOpen(true);
+          return;
+        }
       }
     }
 
@@ -360,8 +381,7 @@ export default function Journeys() {
       }
 
       await loadData();
-    } catch (err) {
-      console.error('Error saving journey:', err);
+    } catch (_err) {
       alert('Erro ao salvar jornada. Verifique os dados e tente novamente.');
     } finally {
       setLoading(false);
@@ -392,7 +412,7 @@ export default function Journeys() {
           .order('date', { ascending: true });
 
         if (error) {
-          console.error('Error fetching fuelings:', error);
+          // Falha ao buscar abastecimentos — exibe lista vazia
           return;
         }
 
@@ -402,22 +422,22 @@ export default function Journeys() {
           fuelType: r.fuel_type
         }));
 
-        const filtered = normalized.filter(r => {
-          const matchesDate = (!modalStartDate || r.date >= modalStartDate) && 
+        const filtered: FuelingWithConsumption[] = normalized.filter(r => {
+          const matchesDate = (!modalStartDate || r.date >= modalStartDate) &&
                              (!modalEndDate || r.date <= modalEndDate);
           return matchesDate;
         }).map((r, index, array) => {
           const prevRef = index > 0 ? array[index - 1] : null;
-          
+
           let averageConsumption = 0;
           if (prevRef && r.quantity > 0) {
             averageConsumption = (r.odometer - prevRef.odometer) / r.quantity;
           }
-          
+
           return { ...r, averageConsumption };
         }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        
-        setVehicleFuelings(filtered as any);
+
+        setVehicleFuelings(filtered);
       }
     };
     fetchFuelings();
@@ -433,7 +453,7 @@ export default function Journeys() {
           .order('date', { ascending: false });
 
         if (error) {
-          console.error('Error fetching maintenances:', error);
+          // Falha ao buscar manutenções — exibe lista vazia
           return;
         }
 
@@ -492,8 +512,8 @@ export default function Journeys() {
           maintenances: maintCount || 0,
           maintenanceRequests: reqCount || 0
         });
-      } catch (err) {
-        console.error('Error fetching associated records:', err);
+      } catch (_err) {
+        // Falha ao buscar registros vinculados — exibe sem contagem
       } finally {
         setIsCheckingAssociated(false);
       }
@@ -552,9 +572,8 @@ export default function Journeys() {
       setJourneyToDelete(null);
       setAssociatedRecords({ refuelings: 0, maintenances: 0, maintenanceRequests: 0 });
       await loadData();
-    } catch (err) {
-      console.error('Error deleting journey:', err);
-      alert('Erro ao excluir jornada.');
+    } catch (_err) {
+      alert('Erro ao excluir jornada. Verifique sua conexão e tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -951,7 +970,7 @@ export default function Journeys() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 uppercase ml-1">Status</label>
-                    <select className="input-field" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value as any})}>
+                    <select className="input-field" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value as 'aberta' | 'encerrada'})}>
                       <option value="aberta">Aberta</option>
                       <option value="encerrada">Encerrada</option>
                     </select>
@@ -1062,8 +1081,13 @@ export default function Journeys() {
           </div>
         )}
 
-        {/* Odometer Error Modal */}
-        {isOdometerErrorModalOpen && (
+        {/* Modal de Erro de Odômetro/Horímetro (Admin) */}
+        {isOdometerErrorModalOpen && (() => {
+          const modalVehicle = vehicles.find(v => v.id === formData.vehicleId);
+          const isMaquinaModal = modalVehicle?.vehicle_type === 'maquina';
+          const medidorNomeModal = isMaquinaModal ? 'Horímetro' : 'Quilometragem';
+          const unidadeModal = isMaquinaModal ? 'h' : 'KM';
+          return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
               <div className="p-6 space-y-6">
@@ -1072,40 +1096,41 @@ export default function Journeys() {
                     <Zap className="text-amber-600 w-10 h-10" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Erro de Quilometragem</h3>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Erro de {medidorNomeModal}</h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                      O KM inicial informado é inferior ao último registro de encerramento deste veículo.
+                      O {medidorNomeModal.toLowerCase()} inicial ({formData.startOdometer} {unidadeModal}) deve ser maior ou igual ao {medidorNomeModal.toLowerCase()} atual do veículo ({lastOdometerValue} {unidadeModal}).
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-800 text-center">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Último KM Final</p>
-                    <p className="text-lg font-bold text-slate-900 dark:text-white">{lastOdometerValue} KM</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Último {medidorNomeModal}</p>
+                    <p className="text-lg font-bold text-slate-900 dark:text-white">{lastOdometerValue} {unidadeModal}</p>
                   </div>
                   <div className="bg-red-50 dark:bg-red-900/10 rounded-xl p-3 border border-red-100 dark:border-red-900/20 text-center">
-                    <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider">KM Digitado</p>
-                    <p className="text-lg font-bold text-red-600 dark:text-red-400">{formData.startOdometer} KM</p>
+                    <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider">Valor Digitado</p>
+                    <p className="text-lg font-bold text-red-600 dark:text-red-400">{formData.startOdometer} {unidadeModal}</p>
                   </div>
                 </div>
 
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
                   <p className="text-xs text-amber-800 dark:text-amber-400 text-center font-medium">
-                    Por favor, verifique o painel do veículo e corrija a quilometragem para prosseguir.
+                    Por favor, verifique o painel do {isMaquinaModal ? 'equipamento' : 'veículo'} e corrija o {medidorNomeModal.toLowerCase()} para prosseguir.
                   </p>
                 </div>
 
-                <button 
+                <button
                   onClick={() => setIsOdometerErrorModalOpen(false)}
                   className="w-full h-14 bg-primary text-white rounded-2xl font-bold uppercase tracking-wider shadow-lg shadow-primary/20 hover:bg-blue-700 transition-all"
                 >
-                  Corrigir Quilometragem
+                  Corrigir {medidorNomeModal}
                 </button>
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* Fueling Details Modal */}
         {isFuelingModalOpen && selectedVehicleForDetails && (
@@ -1181,9 +1206,9 @@ export default function Journeys() {
                           </div>
                           <div className="text-right">
                             <p className="text-lg font-black text-primary leading-none">{r.quantity}L</p>
-                            {(r as any).averageConsumption > 0 && (
+                            {r.averageConsumption > 0 && (
                               <p className="text-[10px] font-bold text-green-600 uppercase mt-1">
-                                {(r as any).averageConsumption.toFixed(1).replace('.', ',')} km/L
+                                {r.averageConsumption.toFixed(1).replace('.', ',')} km/L
                               </p>
                             )}
                             <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Quantidade</p>

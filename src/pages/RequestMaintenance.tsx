@@ -48,7 +48,6 @@ export default function RequestMaintenance() {
         .order('plate');
       
       if (vError) {
-        console.error('Error fetching vehicles:', vError);
       } else {
         setVehicles(vehiclesData || []);
       }
@@ -62,7 +61,6 @@ export default function RequestMaintenance() {
         .limit(1);
 
       if (jError) {
-        console.error('Error fetching open journey:', jError);
       } else if (openJourneys && openJourneys.length > 0) {
         const j = openJourneys[0];
         setSelectedVehicle(j.vehicle_id);
@@ -122,7 +120,6 @@ export default function RequestMaintenance() {
       alert('Solicitação enviada com sucesso!');
       navigate(-1);
     } catch (err) {
-      console.error('Error sending request:', err);
       alert('Erro ao enviar solicitação.');
     } finally {
       setLoading(false);
@@ -361,8 +358,9 @@ export default function RequestMaintenance() {
             <Power size={24} />
             <p className="text-[9px] font-bold uppercase tracking-tight text-center">Início</p>
           </button>
-          <button 
-            onClick={() => {
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut();
               localStorage.removeItem('fleet_user');
               navigate('/login');
             }}

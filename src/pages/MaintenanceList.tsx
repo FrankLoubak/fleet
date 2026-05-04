@@ -141,7 +141,6 @@ export default function MaintenanceList() {
         setPendingRequests(normalized);
       }
     } catch (err) {
-      console.error('Error fetching maintenance data:', err);
     } finally {
       setLoading(false);
     }
@@ -191,7 +190,6 @@ export default function MaintenanceList() {
       alert('Solicitação autorizada com sucesso!');
       fetchData();
     } catch (err) {
-      console.error('Error authorizing request:', err);
       alert('Erro ao autorizar solicitação.');
     } finally {
       setActionLoading(null);
@@ -234,7 +232,6 @@ export default function MaintenanceList() {
       });
       fetchData();
     } catch (err) {
-      console.error('Error creating request:', err);
       alert('Erro ao criar solicitação.');
     } finally {
       setLoading(false);
@@ -322,7 +319,6 @@ export default function MaintenanceList() {
       setIsEditModalOpen(false);
       fetchData();
     } catch (err) {
-      console.error('Error updating record:', err);
       alert('Erro ao atualizar registro.');
     } finally {
       setLoading(false);
@@ -355,7 +351,6 @@ export default function MaintenanceList() {
       alert('Manutenção cancelada com sucesso!');
       fetchData();
     } catch (err) {
-      console.error('Error cancelling maintenance:', err);
       alert('Erro ao cancelar manutenção.');
     } finally {
       setActionLoading(null);
@@ -376,7 +371,6 @@ export default function MaintenanceList() {
       alert('Registro excluído com sucesso!');
       fetchData();
     } catch (err) {
-      console.error('Error deleting record:', err);
       alert('Erro ao excluir registro.');
     } finally {
       setLoading(false);
@@ -401,7 +395,7 @@ export default function MaintenanceList() {
       const currentVal = vehicle?.vehicle_type === 'maquina' ? (vehicle.current_hourmeter || 0) : (vehicle?.current_odometer || vehicle?.last_odometer || 0);
       
       if (odoNum > currentVal) {
-        const updatePayload: any = { last_odometer: odoNum };
+        const updatePayload: Record<string, number> = { last_odometer: odoNum };
         if (vehicle?.vehicle_type === 'maquina') {
           updatePayload.current_hourmeter = odoNum;
         } else {
@@ -412,7 +406,6 @@ export default function MaintenanceList() {
           .from('vehicles')
           .update(updatePayload)
           .eq('id', m.vehicleId);
-        if (vError) console.error('Error updating vehicle odometer/hourmeter:', vError);
       }
 
       // Also mark request as concluida if exists
@@ -426,7 +419,6 @@ export default function MaintenanceList() {
       alert('Manutenção concluída com sucesso!');
       fetchData();
     } catch (err) {
-      console.error('Error finishing maintenance:', err);
       alert('Erro ao concluir manutenção.');
     } finally {
       setActionLoading(null);
@@ -461,7 +453,6 @@ export default function MaintenanceList() {
       setEditForm({ ...editForm, documentUrl: publicUrl });
       alert('Documento enviado com sucesso!');
     } catch (err) {
-      console.error('Error uploading file:', err);
       alert('Erro ao enviar documento. Verifique se o bucket "documents" existe.');
     } finally {
       setLoading(false);

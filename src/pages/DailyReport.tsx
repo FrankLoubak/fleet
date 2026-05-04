@@ -35,7 +35,17 @@ export default function DailyReport() {
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [endTime, setEndTime] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
   const [loading, setLoading] = useState(false);
-  const [maintenanceAlerts, setMaintenanceAlerts] = useState<any[]>([]);
+
+  interface MaintenanceAlert {
+    id: string;
+    type: 'request' | 'authorized';
+    title: string;
+    description: string;
+    date: string;
+    severity: 'info' | 'warning';
+  }
+
+  const [maintenanceAlerts, setMaintenanceAlerts] = useState<MaintenanceAlert[]>([]);
 
   const isJourneyOpen = currentJourney?.status === 'aberta';
 
@@ -56,7 +66,7 @@ export default function DailyReport() {
         .order('plate');
       
       if (vError) {
-        console.error('Error fetching vehicles:', vError);
+        // Falha ao carregar veículos — mantém lista vazia
       } else {
         const normalizedVehicles = (vehiclesData || []).map(v => ({
           ...v,
@@ -71,7 +81,7 @@ export default function DailyReport() {
         .select('*');
       
       if (pError) {
-        console.error('Error fetching profiles:', pError);
+        // Falha ao carregar perfis — mantém lista vazia
       } else {
         const normalizedUsers = (profilesData || []).map(p => ({
           id: p.id,
@@ -92,7 +102,7 @@ export default function DailyReport() {
         .limit(1);
 
       if (jError) {
-        console.error('Error fetching open journey:', jError);
+        // Falha ao verificar jornada em aberto — ignora silenciosamente
       } else if (openJourneys && openJourneys.length > 0) {
         const j = openJourneys[0];
         const journey: Journey = {
@@ -163,15 +173,16 @@ export default function DailyReport() {
         } else {
           setStartOdometer('');
         }
-      } catch (err) {
-        console.error('Error fetching last odometer:', err);
+      } catch (_err) {
+        // Falha ao buscar último odômetro/horímetro — mantém campo vazio
       }
     };
 
     fetchLastOdometer();
   }, [selectedVehicle, isJourneyOpen, vehicles]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem('fleet_user');
     navigate('/login');
   };
@@ -188,9 +199,29 @@ export default function DailyReport() {
       return;
     }
 
+    // Validação frontend imediata do odômetro/horímetro inicial
+    const selectedVehicleObj = vehicles.find(v => v.id === selectedVehicle);
+    if (selectedVehicleObj) {
+      const isMaquina = selectedVehicleObj.vehicle_type === 'maquina';
+      const currentMedidor = isMaquina
+        ? (selectedVehicleObj.current_hourmeter || 0)
+        : (selectedVehicleObj.current_odometer || selectedVehicleObj.lastOdometer || 0);
+
+      if (currentMedidor > 0 && Number(startOdometer) < currentMedidor) {
+        const medidorNome = isMaquina ? 'horímetro' : 'odômetro';
+        const unidade = isMaquina ? 'h' : 'km';
+        setLastOdometerValue(currentMedidor);
+        setErrorMessages([
+          `O ${medidorNome} inicial (${Number(startOdometer)} ${unidade}) deve ser maior ou igual ao ${medidorNome} atual do veículo (${currentMedidor} ${unidade}).`
+        ]);
+        setIsOdometerErrorModalOpen(true);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
-      // 01 - Check if the current user already has an open journey (any vehicle)
+      // 01 - Verifica se o usuário já possui jornada aberta em outro veículo
       const { data: userJourneys, error: ujError } = await supabase
         .from('journeys')
         .select('*')
@@ -217,8 +248,8 @@ export default function DailyReport() {
         setIsPreviousJourneyModalOpen(true);
         return;
       }
-      
-      // 01.2 - Check if the vehicle is occupied by another user
+
+      // 01.2 - Verifica se o veículo está sendo usado por outro motorista
       const { data: vehicleJourneys, error: vjError } = await supabase
         .from('journeys')
         .select('*')
@@ -236,7 +267,7 @@ export default function DailyReport() {
         return;
       }
 
-      // 02 - Check if start KM is greater than or equal to the last recorded KM (Last Journey, Refueling or Maintenance)
+      // 02 - Validação no banco: odômetro/horímetro inicial >= último registrado
       const { data: lastJ, error: ljErr } = await supabase
         .from('journeys')
         .select('end_odometer')
@@ -244,7 +275,7 @@ export default function DailyReport() {
         .eq('status', 'encerrada')
         .order('end_time', { ascending: false })
         .limit(1);
-      
+
       const { data: vRecord, error: vrErr } = await supabase
         .from('vehicles')
         .select('last_odometer, current_odometer, current_hourmeter, vehicle_type')
@@ -254,11 +285,19 @@ export default function DailyReport() {
       if (ljErr || vrErr) throw (ljErr || vrErr);
 
       const lastJourneyOdo = lastJ?.[0]?.end_odometer || 0;
-      const vehicleOdo = vRecord?.vehicle_type === 'maquina' ? vRecord?.current_hourmeter : (vRecord?.current_odometer || vRecord?.last_odometer);
+      const vehicleOdo = vRecord?.vehicle_type === 'maquina'
+        ? vRecord?.current_hourmeter
+        : (vRecord?.current_odometer || vRecord?.last_odometer);
       const minRequiredOdo = Math.max(lastJourneyOdo, vehicleOdo || 0);
 
       if (Number(startOdometer) < minRequiredOdo) {
+        const isMaquina = vRecord?.vehicle_type === 'maquina';
+        const medidorNome = isMaquina ? 'horímetro' : 'odômetro';
+        const unidade = isMaquina ? 'h' : 'km';
         setLastOdometerValue(minRequiredOdo);
+        setErrorMessages([
+          `O ${medidorNome} inicial (${Number(startOdometer)} ${unidade}) deve ser maior ou igual ao ${medidorNome} atual do veículo (${minRequiredOdo} ${unidade}).`
+        ]);
         setIsOdometerErrorModalOpen(true);
         setLoading(false);
         return;
@@ -279,10 +318,12 @@ export default function DailyReport() {
 
       if (insertError) throw insertError;
 
-      // Update vehicle last_odometer if start KM is higher
-      const currentVal = vehicle?.vehicle_type === 'maquina' ? (vehicle.current_hourmeter || 0) : (vehicle?.current_odometer || vehicle?.lastOdometer || 0);
+      // Atualiza odômetro/horímetro do veículo se o valor inicial for maior que o atual
+      const currentVal = vehicle?.vehicle_type === 'maquina'
+        ? (vehicle.current_hourmeter || 0)
+        : (vehicle?.current_odometer || vehicle?.lastOdometer || 0);
       if (vehicle && Number(startOdometer) > currentVal) {
-        const updatePayload: any = { last_odometer: Number(startOdometer) };
+        const updatePayload: Record<string, number> = { last_odometer: Number(startOdometer) };
         if (vehicle.vehicle_type === 'maquina') {
           updatePayload.current_hourmeter = Number(startOdometer);
         } else {
@@ -310,9 +351,10 @@ export default function DailyReport() {
         };
         setCurrentJourney(newJourney);
       }
-    } catch (err) {
-      console.error('Error starting journey:', err);
-      alert('Erro ao iniciar jornada.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro desconhecido';
+      setErrorMessages([`Erro ao iniciar jornada: ${message}`]);
+      setIsGeneralErrorModalOpen(true);
     } finally {
       setLoading(false);
     }
@@ -321,16 +363,22 @@ export default function DailyReport() {
   const handleEndJourney = async () => {
     const endOdom = Number(endOdometer);
     const startOdom = currentJourney?.startOdometer || 0;
+    const isMaquina = vehicle?.vehicle_type === 'maquina';
+    const medidorNome = isMaquina ? 'horímetro' : 'odômetro';
+    const unidade = isMaquina ? 'h' : 'km';
 
+    // Validação frontend imediata: valor final deve ser maior que o inicial
     if (!endOdometer || endOdom <= startOdom) {
-      setErrorMessages(['O KM final deve ser maior que o KM inicial.']);
+      setErrorMessages([
+        `O ${medidorNome} final deve ser maior que o ${medidorNome} inicial (${startOdom} ${unidade}).`
+      ]);
       setIsGeneralErrorModalOpen(true);
       return;
     }
 
     setLoading(true);
     try {
-      // 02 - Check for refuelings during this journey
+      // 02 - Verifica abastecimentos realizados durante esta jornada
       const { data: journeyRefuelings, error: refError } = await supabase
         .from('refuelings')
         .select('odometer')
@@ -339,19 +387,22 @@ export default function DailyReport() {
         .order('odometer', { ascending: false })
         .limit(1);
 
-      if (refError) console.error('Error checking refuelings:', refError);
-      
+      if (refError) throw refError;
+
       if (journeyRefuelings && journeyRefuelings.length > 0) {
         const maxRefOdo = journeyRefuelings[0].odometer;
         if (endOdom < maxRefOdo) {
-          setErrorMessages([`O KM final (${endOdom}) não pode ser menor que o KM do último abastecimento realizado nesta jornada (${maxRefOdo}).`]);
+          const label = isMaquina ? 'horímetro do último abastecimento' : 'KM do último abastecimento';
+          setErrorMessages([
+            `O ${medidorNome} final (${endOdom} ${unidade}) não pode ser menor que o ${label} realizado nesta jornada (${maxRefOdo} ${unidade}).`
+          ]);
           setIsGeneralErrorModalOpen(true);
           setLoading(false);
           return;
         }
       }
 
-      // 03 - Check for maintenances during this journey
+      // 03 - Verifica manutenções realizadas durante esta jornada
       const { data: journeyMaintenances, error: maintError } = await supabase
         .from('maintenances')
         .select('mileage')
@@ -360,12 +411,15 @@ export default function DailyReport() {
         .order('mileage', { ascending: false })
         .limit(1);
 
-      if (maintError) console.error('Error checking maintenances:', maintError);
+      if (maintError) throw maintError;
 
       if (journeyMaintenances && journeyMaintenances.length > 0) {
         const maxMaintOdo = journeyMaintenances[0].mileage;
         if (endOdom < maxMaintOdo) {
-          setErrorMessages([`O KM final (${endOdom}) não pode ser menor que o KM da última manutenção realizada nesta jornada (${maxMaintOdo}).`]);
+          const label = isMaquina ? 'horímetro da última manutenção' : 'KM da última manutenção';
+          setErrorMessages([
+            `O ${medidorNome} final (${endOdom} ${unidade}) não pode ser menor que o ${label} realizada nesta jornada (${maxMaintOdo} ${unidade}).`
+          ]);
           setIsGeneralErrorModalOpen(true);
           setLoading(false);
           return;
@@ -375,12 +429,12 @@ export default function DailyReport() {
       const endTimeStr = `${endDate}T${endTime}`;
       const dist = endOdom - startOdom;
 
-      // Calculate duration
+      // Calcula duração para determinar se precisa de validação do gestor
       const startTimeDate = new Date(currentJourney!.startTime);
       const endTimeDate = new Date(endTimeStr);
       const durationMs = endTimeDate.getTime() - startTimeDate.getTime();
       const eightHoursMs = 8 * 60 * 60 * 1000;
-      
+
       const needsValidation = durationMs > eightHoursMs;
       const validationStatus = needsValidation ? 'pendente' : 'validada';
 
@@ -399,8 +453,8 @@ export default function DailyReport() {
 
       if (error) throw error;
 
-      // Update vehicle last_odometer
-      const updatePayload: any = { last_odometer: endOdom };
+      // Atualiza odômetro/horímetro atual do veículo
+      const updatePayload: Record<string, number> = { last_odometer: endOdom };
       if (vehicle?.vehicle_type === 'maquina') {
         updatePayload.current_hourmeter = endOdom;
       } else {
@@ -412,23 +466,23 @@ export default function DailyReport() {
         .update(updatePayload)
         .eq('id', currentJourney!.vehicleId);
 
-      if (vError) console.error('Error updating vehicle odometer:', vError);
+      if (vError) throw vError;
 
-      // Clear local state
+      // Limpa estado local
       setCurrentJourney(null);
       setIsEndModalOpen(false);
       setEndOdometer('');
       setSelectedVehicle('');
       setStartOdometer('');
-      
+
       if (needsValidation) {
         setIsValidationAlertModalOpen(true);
       } else {
         setIsSuccessModalOpen(true);
       }
-    } catch (err: any) {
-      console.error('Error ending journey:', err);
-      setErrorMessages([err.message || 'Erro ao encerrar jornada. Verifique sua conexão.']);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao encerrar jornada. Verifique sua conexão.';
+      setErrorMessages([message]);
       setIsGeneralErrorModalOpen(true);
     } finally {
       setLoading(false);
@@ -436,8 +490,16 @@ export default function DailyReport() {
   };
 
   const handleEndPreviousJourney = async () => {
-    if (!endOdometer || Number(endOdometer) <= (previousJourney?.startOdometer || 0)) {
-      setErrorMessages(['O KM final deve ser maior que o KM inicial.']);
+    const prevStartOdom = previousJourney?.startOdometer || 0;
+    const prevVehicle = vehicles.find(v => v.id === previousJourney?.vehicleId);
+    const isPrevMaquina = prevVehicle?.vehicle_type === 'maquina';
+    const prevMedidorNome = isPrevMaquina ? 'horímetro' : 'odômetro';
+    const prevUnidade = isPrevMaquina ? 'h' : 'km';
+
+    if (!endOdometer || Number(endOdometer) <= prevStartOdom) {
+      setErrorMessages([
+        `O ${prevMedidorNome} final deve ser maior que o ${prevMedidorNome} inicial (${prevStartOdom} ${prevUnidade}).`
+      ]);
       setIsGeneralErrorModalOpen(true);
       return;
     }
@@ -462,9 +524,8 @@ export default function DailyReport() {
 
       if (error) throw error;
 
-      // Update vehicle last_odometer
-      const prevVehicle = vehicles.find(v => v.id === previousJourney!.vehicleId);
-      const updatePayload: any = { last_odometer: endOdom };
+      // Atualiza odômetro/horímetro do veículo da jornada anterior
+      const updatePayload: Record<string, number> = { last_odometer: endOdom };
       if (prevVehicle?.vehicle_type === 'maquina') {
         updatePayload.current_hourmeter = endOdom;
       } else {
@@ -479,11 +540,11 @@ export default function DailyReport() {
       setPreviousJourney(null);
       setIsPreviousJourneyModalOpen(false);
       setEndOdometer('');
-      
+
       setIsSuccessModalOpen(true);
-    } catch (err: any) {
-      console.error('Error ending previous journey:', err);
-      setErrorMessages([err.message || 'Erro ao encerrar jornada anterior. Verifique sua conexão.']);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao encerrar jornada anterior. Verifique sua conexão.';
+      setErrorMessages([message]);
       setIsGeneralErrorModalOpen(true);
     } finally {
       setLoading(false);
@@ -507,7 +568,7 @@ export default function DailyReport() {
 
         if (reqError) throw reqError;
 
-        // 2. Fetch Authorized but not Executed Maintenances
+        // 2. Busca manutenções autorizadas mas ainda não executadas
         const { data: maintenances, error: mainError } = await supabase
           .from('maintenances')
           .select('*')
@@ -516,9 +577,9 @@ export default function DailyReport() {
 
         if (mainError) throw mainError;
 
-        const alerts = [];
+        const alerts: MaintenanceAlert[] = [];
 
-        // Pending Requests -> Info (Blue)
+        // Solicitações pendentes -> Informativo (Azul)
         (requests || []).forEach(r => {
           alerts.push({
             id: r.id,
@@ -530,7 +591,7 @@ export default function DailyReport() {
           });
         });
 
-        // Authorized but not Executed -> Warning (Orange)
+        // Manutenções autorizadas não executadas -> Alerta (Laranja)
         (maintenances || []).forEach(m => {
           alerts.push({
             id: m.id,
@@ -543,8 +604,8 @@ export default function DailyReport() {
         });
 
         setMaintenanceAlerts(alerts);
-      } catch (err) {
-        console.error('Error fetching maintenance alerts for journey:', err);
+      } catch (_err) {
+        // Falha ao buscar alertas de manutenção — exibe sem alertas
       }
     };
 
@@ -1111,7 +1172,7 @@ export default function DailyReport() {
           </div>
         )}
 
-        {/* Odometer Error Modal */}
+        {/* Modal de Erro de Odômetro/Horímetro */}
         {isOdometerErrorModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
             <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
@@ -1121,35 +1182,53 @@ export default function DailyReport() {
                     <Zap className="text-amber-600 w-10 h-10" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Erro de Quilometragem</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      O KM inicial informado é inferior ao último registro de encerramento deste veículo.
-                    </p>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                      {vehicle?.vehicle_type === 'maquina' ? 'Erro de Horímetro' : 'Erro de Quilometragem'}
+                    </h3>
+                    {errorMessages.length > 0 ? (
+                      <p className="text-sm text-slate-500 dark:text-slate-400">{errorMessages[0]}</p>
+                    ) : (
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {vehicle?.vehicle_type === 'maquina'
+                          ? 'O horímetro inicial informado é inferior ao último registro deste equipamento.'
+                          : 'O KM inicial informado é inferior ao último registro de encerramento deste veículo.'}
+                      </p>
+                    )}
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-800 text-center">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Último KM Final</p>
-                    <p className="text-lg font-bold text-slate-900 dark:text-white">{lastOdometerValue} KM</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      {vehicle?.vehicle_type === 'maquina' ? 'Último Horímetro' : 'Último KM Final'}
+                    </p>
+                    <p className="text-lg font-bold text-slate-900 dark:text-white">
+                      {lastOdometerValue} {vehicle?.vehicle_type === 'maquina' ? 'h' : 'km'}
+                    </p>
                   </div>
                   <div className="bg-red-50 dark:bg-red-900/10 rounded-xl p-3 border border-red-100 dark:border-red-900/20 text-center">
-                    <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider">KM Digitado</p>
-                    <p className="text-lg font-bold text-red-600 dark:text-red-400">{startOdometer} KM</p>
+                    <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider">
+                      {vehicle?.vehicle_type === 'maquina' ? 'Horímetro Digitado' : 'KM Digitado'}
+                    </p>
+                    <p className="text-lg font-bold text-red-600 dark:text-red-400">
+                      {startOdometer} {vehicle?.vehicle_type === 'maquina' ? 'h' : 'km'}
+                    </p>
                   </div>
                 </div>
 
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
                   <p className="text-xs text-amber-800 dark:text-amber-400 text-center font-medium">
-                    Por favor, verifique o painel do veículo e corrija a quilometragem para prosseguir.
+                    {vehicle?.vehicle_type === 'maquina'
+                      ? 'Por favor, verifique o painel do equipamento e corrija o horímetro para prosseguir.'
+                      : 'Por favor, verifique o painel do veículo e corrija a quilometragem para prosseguir.'}
                   </p>
                 </div>
 
-                <button 
-                  onClick={() => setIsOdometerErrorModalOpen(false)}
+                <button
+                  onClick={() => { setIsOdometerErrorModalOpen(false); setErrorMessages([]); }}
                   className="btn-primary w-full h-14"
                 >
-                  Corrigir Quilometragem
+                  {vehicle?.vehicle_type === 'maquina' ? 'Corrigir Horímetro' : 'Corrigir Quilometragem'}
                 </button>
               </div>
             </div>

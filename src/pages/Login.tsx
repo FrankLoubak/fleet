@@ -55,7 +55,7 @@ export default function Login() {
         setInviteRole(data.role);
         setInviteId(data.id);
         setInvitedBy(data.invited_by);
-      } catch (err: any) {
+      } catch (_err: unknown) {
         setInviteError('Erro ao verificar convite.');
       } finally {
         setInviteLoading(false);
@@ -116,9 +116,9 @@ export default function Login() {
         setSuccess('Conta criada com sucesso! Você já pode fazer login.');
         navigate('/login');
       }
-    } catch (err: any) {
-      console.error('SignUp error:', err);
-      setError(err.message || 'Erro ao criar conta. Tente novamente.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao criar conta. Tente novamente.';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -148,7 +148,7 @@ export default function Login() {
       if (profileLookup?.email) {
         loginEmail = profileLookup.email;
       } else if (lookupError) {
-        console.warn('CPF não encontrado na tabela profiles, tentando e-mail padrão...');
+        // CPF não encontrado em profiles — prossegue com e-mail padrão derivado do CPF
       }
 
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -175,7 +175,8 @@ export default function Login() {
           .eq('user_id', authData.user.id)
           .eq('status', 'aberta');
 
-        if (journeyError) console.error('Error checking journeys', journeyError);
+        // Erro ao buscar jornadas abertas é não-bloqueante; segue com o redirecionamento padrão
+        void journeyError;
 
         const hasOpenJourney = openJourneys && openJourneys.length > 0;
 
@@ -185,9 +186,9 @@ export default function Login() {
           navigate('/dashboard');
         }
       }
-    } catch (err: any) {
-      console.error('Auth error:', err);
-      setError(err.message || 'Erro ao processar solicitação. Tente novamente.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao processar solicitação. Tente novamente.';
+      setError(message);
     } finally {
       setLoading(false);
     }

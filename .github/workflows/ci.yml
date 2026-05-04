@@ -1,0 +1,45 @@
+# Workflow de Integração Contínua (CI)
+# Executa testes e build em todo push para qualquer branch
+# e em pull requests direcionados à branch main
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Faz o checkout do código-fonte do repositório
+      - uses: actions/checkout@v4
+
+      # Configura o Node.js na versão 20 com cache do npm para acelerar instalações
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # Instala as dependências de forma determinística usando o package-lock.json
+      - name: Instalar dependências
+        run: npm ci
+
+      # Executa a suíte de testes com relatório de cobertura de código
+      # As variáveis de ambiente do Supabase são necessárias para testes de integração
+      - name: Executar testes com cobertura
+        run: npm run test:coverage
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      # Realiza o build de produção para garantir que o código compila sem erros
+      - name: Build de produção
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}

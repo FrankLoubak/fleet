@@ -19,7 +19,7 @@ Este documento descreve a arquitetura, o stack tecnológico e as regras de negó
 - `/src/components`: Componentes reutilizáveis (Sidebar, etc.).
 - `/src/pages`: Páginas da aplicação (Dashboard, Login, DailyReport, Users, etc.).
 - `/src/lib`: Configurações de bibliotecas externas (Supabase).
-- `/src/migrations`: Scripts SQL para alterações no banco de dados.
+- `/supabase/migrations`: Scripts SQL de migrations (fonte de verdade do schema).
 - `/src/types.ts`: Definições de interfaces TypeScript.
 - `/src/utils.ts`: Funções utilitárias e dados mock para seed.
 
@@ -44,7 +44,17 @@ Este documento descreve a arquitetura, o stack tecnológico e as regras de negó
 
 ---
 
-## 4. Regras de Negócio por Tabela (Entidade)
+## 4. Schema do Banco de Dados
+
+A documentação completa de todas as tabelas, colunas, tipos, valores permitidos e políticas RLS está centralizada em:
+
+**[DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)** — fonte de verdade do schema do banco.
+
+> Sempre que uma nova migration for adicionada em `supabase/migrations/`, o `DATABASE_SCHEMA.md` deve ser atualizado para refletir as mudanças.
+
+---
+
+## 5. Regras de Negócio por Tabela (Entidade)
 
 ### 4.1. Tabela `profiles` (Usuários)
 - **Inserção:** Ocorre via trigger `handle_new_user()` do Supabase Auth ao criar um usuário.
@@ -97,7 +107,7 @@ Este documento descreve a arquitetura, o stack tecnológico e as regras de negó
 
 ---
 
-## 5. Autenticação e Segurança
+## 6. Autenticação e Segurança
 - O sistema utiliza o **Supabase Auth**.
 - O login usa o **CPF** como identificador primário (mapeado internamente para `cpf@fleetmanager.com` ou e-mail real vinculado ao CPF na tabela `profiles`).
 - **Cadastro:** Não há cadastro público. Todo acesso é feito via **link de convite** gerado por Root ou Admin na página `/users`.
@@ -105,7 +115,7 @@ Este documento descreve a arquitetura, o stack tecnológico e as regras de negó
 
 ---
 
-## 6. Como adicionar um usuário Root
+## 7. Como adicionar um usuário Root
 
 1. Acesse **Supabase → Authentication → Users → Add user** e crie o usuário com e-mail e senha.
 2. Execute o SQL abaixo para promover o perfil criado:
@@ -117,16 +127,16 @@ WHERE email = 'email@dominio.com';
 
 ---
 
-## 7. Manutenção e Build
+## 8. Manutenção e Build
 - **Instalação:** `npm install`
 - **Desenvolvimento:** `npm run dev`
 - **Build de Produção:** `npm run build` (gera a pasta `/dist`)
 - **Linting:** `npm run lint`
-- **Migrations:** Scripts SQL em `/src/migrations/` — executar no Supabase SQL Editor.
+- **Migrations:** Scripts SQL em `/supabase/migrations/` — executar no Supabase SQL Editor ou via `supabase db push`.
 
 ---
 
-## 8. Observações Importantes para Novos Desenvolvedores
+## 9. Observações Importantes para Novos Desenvolvedores
 - **Responsividade:** Utilize sempre as classes utilitárias do Tailwind para garantir que tabelas e gráficos se adaptem a telas pequenas (ex: `overflow-x-auto`).
 - **Sincronização:** O estado da aplicação depende fortemente do `localStorage` (`fleet_user`) para persistência de sessão rápida, mas a fonte da verdade é sempre o Supabase.
 - **Alertas:** A lógica de alertas de manutenção no Dashboard e Sidebar deve ser mantida sincronizada com os status `pendente` das tabelas `maintenance_requests` e `maintenances`.
@@ -135,9 +145,44 @@ WHERE email = 'email@dominio.com';
 
 ---
 
-## 9. Histórico de Correções
+## 10. Histórico de Correções
 
 | Data | Versão | Descrição |
 |---|---|---|
 | 2026-03-30 | 1.1.0 | Segurança: removidos campos `password` em texto puro dos dados mock e da interface `User` |
 | 2026-03-30 | 1.2.0 | Papéis atualizados: `Motorista` → `Operador`, adicionado `Root`. Cadastro público removido. Sistema de convites implementado. Campo `invited_by` adicionado em `profiles`. Tabela `invites` criada no banco. |
+| 2026-05-01 | 2.0.0 | Rodada de correções Orchestrator (A1–A6). Ver seção 11 para detalhes. |
+
+---
+
+## 11. Rodada de Correções — Orchestrator (2026-05-01)
+
+Execução completa dos agentes A1–A6 com revisão do AR após cada entrega.
+
+### Agentes e entregas
+
+| Agente | Entrega |
+|--------|---------|
+| **A1 — Foundation** | `server.ts` simplificado para thin proxy; `capacitor.config.ts` corrigido (removido `cleartext`, appName → `FleetManager`); `.env.example` limpo; `metadata.json` removido; `README.md` reescrito |
+| **A2 — Migrations** | `maintenance_updates.sql` e `src/migrations/001_invite_system.sql` movidos para `supabase/migrations/`; `DATABASE_SCHEMA.md` criado com documentação de 8 tabelas; `DEVELOPER_MANUAL.md` atualizado |
+| **A3 — Auth** | `ProtectedRoute` e `AdminRoute` implementados em `App.tsx`; `onAuthStateChange` adicionado para sessão persistente; logout corrigido em Sidebar, DailyReport e RequestMaintenance para chamar `supabase.auth.signOut()`; interface `AuthUser` adicionada em `types.ts`; `any` removido de Login.tsx |
+| **A4 — Regras de Negócio** | Validação pré-submit de odômetro/horímetro com mensagens específicas em PT-BR e valores concretos; diferenciação entre `veiculo` (km) e `maquina` (h); `console.error` e `any` removidos de DailyReport.tsx e Journeys.tsx; seção "Regras de Negócio" adicionada ao DATABASE_SCHEMA.md |
+| **A5 — Testes** | Vitest configurado; 280 testes em 17 arquivos; cobertura final: **60.59% statements, 81.83% branches** |
+| **A6 — CI/CD** | `.github/workflows/ci.yml` (push/PR) e `.github/workflows/deploy.yml` (push main → Vercel) criados |
+
+### Cobertura de testes final
+
+```
+Statements : 60.59%
+Branches   : 81.83%
+Functions  : 39.76%
+Lines      : 60.59%
+Total tests: 280 (17 arquivos)
+```
+
+### Pendências para próxima iteração
+
+- Configurar os 5 GitHub Secrets no repositório para ativar os workflows: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`
+- Remover `console.error` remanescentes em catch blocks de Vehicles.tsx, Dashboard.tsx, Users.tsx, Refueling.tsx, Maintenance.tsx, MaintenanceList.tsx (pré-existentes, fora do escopo desta rodada)
+- Remover `any` remanescentes em seedData.ts, Refueling.tsx, Users.tsx (pré-existentes)
+- Aumentar cobertura de funções (atual: 39.76%) com testes de interação nos componentes grandes

@@ -1,53 +1,53 @@
+/**
+ * Thin proxy do servidor Express.
+ * Em desenvolvimento: integra o Vite como middleware para hot reload.
+ * Em produção: serve o SPA (catch-all para index.html) e expõe health check.
+ */
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Lê a versão do package.json para expor no health check
+const require = createRequire(import.meta.url);
+const pkg = require("./package.json") as { version: string };
+
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
   app.use(express.json());
 
-  // Mock API Routes
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
-  });
-
-  app.get("/api/stats", (req, res) => {
+  // Health check — retorna status, versão e uptime do processo
+  app.get("/api/health", (_req, res) => {
     res.json({
-      fuel: {
-        current: 12450,
-        previous: 11834,
-        change: 5.2
-      },
-      maintenance: {
-        current: 4320,
-        previous: 4412,
-        change: -2.1
-      }
+      status: "ok",
+      version: pkg.version,
+      uptime: process.uptime(),
     });
   });
 
-  // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    // Desenvolvimento: Vite como middleware para hot reload
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
+    // Produção: serve os assets estáticos e redireciona tudo para o SPA
     app.use(express.static(path.join(__dirname, "dist")));
-    app.get("*", (req, res) => {
+    app.get("*", (_req, res) => {
       res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    // Intencionalmente sem log — use variável de ambiente DEBUG se necessário
   });
 }
 

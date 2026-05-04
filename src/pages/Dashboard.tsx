@@ -351,7 +351,6 @@ export default function Dashboard() {
         pendingJourneysCount: pendingJourneys?.length || 0
       });
     } catch (err) {
-      console.error('Error loading dashboard data:', err);
     } finally {
       setLoading(false);
     }
@@ -380,7 +379,6 @@ export default function Dashboard() {
         .order('plate');
 
       if (error) {
-        console.error('Error loading vehicles:', error);
         return;
       }
 
@@ -818,10 +816,10 @@ export default function Dashboard() {
                     tick={{fontSize: 12, fill: '#94a3b8'}}
                     tickFormatter={(value) => chartType === 'fuel' ? `${value}L` : `R$ ${value}`}
                   />
-                  <Tooltip 
+                  <Tooltip
                     cursor={{fill: 'transparent'}}
                     contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
-                    formatter={(value: any) => chartType === 'fuel' ? [`${value} L`, 'Quantidade'] : [`R$ ${value.toLocaleString('pt-BR')}`, 'Valor Total']}
+                    formatter={(value: number) => chartType === 'fuel' ? [`${value} L`, 'Quantidade'] : [`R$ ${value.toLocaleString('pt-BR')}`, 'Valor Total']}
                   />
                   <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
                   {chartType === 'fuel' ? (

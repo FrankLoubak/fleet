@@ -156,7 +156,6 @@ export default function Vehicles() {
 
       setVehicleData(enrichedVehicles);
     } catch (err) {
-      console.error('Error loading vehicles:', err);
     } finally {
       setLoading(false);
     }
@@ -194,11 +193,11 @@ export default function Vehicles() {
     setLoading(true);
     
     try {
-      const vehiclePayload: any = {
+      const vehiclePayload: Partial<Vehicle> = {
         plate: formData.vehicle_type === 'maquina' ? `MAQ-${formData.prefix}` : formData.plate,
         model: formData.model,
         prefix: formData.prefix,
-        vehicle_type: formData.vehicle_type,
+        vehicle_type: formData.vehicle_type as any,
         initial_odometer: formData.initial_odometer,
         initial_hourmeter: formData.initial_hourmeter,
       };
@@ -230,7 +229,6 @@ export default function Vehicles() {
       setIsModalOpen(false);
       loadVehicles();
     } catch (err) {
-      console.error('Error saving vehicle:', err);
       alert('Erro ao salvar veículo. Tente novamente.');
     } finally {
       setLoading(false);
@@ -302,14 +300,13 @@ export default function Vehicles() {
       setVehicleToDelete(null);
       loadVehicles();
     } catch (err) {
-      console.error('Error deleting vehicle:', err);
       alert('Erro ao excluir veículo.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenHistory = (vehicle: any) => {
+  const handleOpenHistory = (vehicle: Vehicle) => {
     setSelectedVehicleForHistory(vehicle);
     setIsHistoryModalOpen(true);
     loadVehicleHistory(vehicle.id, historyStartDate, historyEndDate);
@@ -337,7 +334,6 @@ export default function Vehicles() {
           .order('date', { ascending: true });
 
         if (error) {
-          console.error('Error fetching fuelings:', error);
           return;
         }
 
@@ -374,7 +370,6 @@ export default function Vehicles() {
           .order('date', { ascending: false });
 
         if (error) {
-          console.error('Error fetching maintenances:', error);
           return;
         }
 
@@ -394,7 +389,6 @@ export default function Vehicles() {
       .order('start_time', { ascending: false });
 
     if (error) {
-      console.error('Error loading history:', error);
       return;
     }
 

@@ -89,7 +89,6 @@ export default function TimeBank() {
       setTotalHours(`${totalH.toString().padStart(2, '0')}:${totalM.toString().padStart(2, '0')}`);
 
     } catch (err) {
-      console.error('Error loading time bank:', err);
     } finally {
       setLoading(false);
     }

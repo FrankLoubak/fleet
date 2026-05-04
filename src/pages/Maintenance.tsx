@@ -45,7 +45,6 @@ export default function Maintenance() {
         .limit(1);
 
       if (jError) {
-        console.error('Error fetching active journey:', jError);
         return;
       }
 
@@ -82,7 +81,6 @@ export default function Maintenance() {
         .select('*');
       
       if (vError) {
-        console.error('Error fetching vehicles:', vError);
       } else {
         setVehicles(vehiclesData || []);
       }
@@ -144,9 +142,9 @@ export default function Maintenance() {
       }, 500);
 
       alert('Relatório gerado com sucesso! O download deve iniciar automaticamente.');
-    } catch (err: any) {
-      console.error('Erro ao exportar CSV:', err);
-      alert('Erro ao gerar o arquivo: ' + (err.message || 'Erro desconhecido'));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro desconhecido';
+      alert('Erro ao gerar o arquivo: ' + message);
     }
   };
 
@@ -171,7 +169,6 @@ export default function Maintenance() {
           
           setVehicleHistory(filtered);
         } catch (err) {
-          console.error('Error fetching history:', err);
         } finally {
           setLoading(false);
         }
@@ -222,7 +219,7 @@ export default function Maintenance() {
       const currentVal = vehicle?.vehicle_type === 'maquina' ? (vehicle.current_hourmeter || 0) : (vehicle?.current_odometer || vehicle?.lastOdometer || 0);
       
       if (odoNum > currentVal) {
-        const updatePayload: any = { last_odometer: odoNum };
+        const updatePayload: Record<string, number> = { last_odometer: odoNum };
         if (vehicle?.vehicle_type === 'maquina') {
           updatePayload.current_hourmeter = odoNum;
         } else {
@@ -233,13 +230,12 @@ export default function Maintenance() {
           .from('vehicles')
           .update(updatePayload)
           .eq('id', activeJourney?.vehicleId);
-        if (vError) console.error('Error updating vehicle odometer/hourmeter:', vError);
       }
 
       setIsSuccessModalOpen(true);
-    } catch (err: any) {
-      console.error('Error saving maintenance:', err);
-      setErrorMessages([err.message || 'Erro ao salvar manutenção. Verifique sua conexão.']);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao salvar manutenção. Verifique sua conexão.';
+      setErrorMessages([message]);
       setIsErrorModalOpen(true);
     } finally {
       setLoading(false);
