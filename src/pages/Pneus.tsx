@@ -215,11 +215,11 @@ function renderAxleSchema(
         const rightSlots = slots.slice(half);
 
         return (
-          <div key={n} className="flex items-center gap-3">
+          <div key={n} className="flex items-center gap-2 overflow-x-auto">
             <span className="text-xs font-bold text-slate-500 w-12 shrink-0">Eixo {n}</span>
 
             {/* Grupos de pneus centralizados com divisória pequena entre lados */}
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex flex-1 items-center justify-center md:justify-center min-w-0">
               <div className="flex items-center gap-1">
                 {leftSlots.map((slot) => {
                   const posKey = buildPosition(n, slot);
@@ -228,7 +228,7 @@ function renderAxleSchema(
                     <DroppableZone
                       key={posKey}
                       id={`pos:${posKey}`}
-                      className="w-16 h-12 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex items-center justify-center"
+                      className="w-12 h-10 sm:w-14 md:w-16 md:h-12 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex items-center justify-center shrink-0"
                     >
                       {tire ? (
                         <DraggableTire pneu={tire} compact />
@@ -240,7 +240,7 @@ function renderAxleSchema(
                 })}
 
                 {/* Divisória central representando o eixo do veículo */}
-                <div className="w-6 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-2" />
+                <div className="w-4 h-1 sm:w-5 sm:h-1.5 md:w-6 md:h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-1 sm:mx-1.5 md:mx-2 shrink-0" />
 
                 {rightSlots.map((slot) => {
                   const posKey = buildPosition(n, slot);
@@ -249,7 +249,7 @@ function renderAxleSchema(
                     <DroppableZone
                       key={posKey}
                       id={`pos:${posKey}`}
-                      className="w-16 h-12 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex items-center justify-center"
+                      className="w-12 h-10 sm:w-14 md:w-16 md:h-12 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex items-center justify-center shrink-0"
                     >
                       {tire ? (
                         <DraggableTire pneu={tire} compact />
@@ -267,8 +267,8 @@ function renderAxleSchema(
 
       {/* Spare tires row */}
       {config.pneusReserva > 0 && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-500 w-12 shrink-0">Reserva</span>
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <span className="text-xs font-bold text-slate-500 w-16 shrink-0">Reserva</span>
           <div className="flex gap-1">
             {Array.from({ length: config.pneusReserva }, (_, i) => {
               const posKey = buildReservaPosition(i + 1);
@@ -277,7 +277,7 @@ function renderAxleSchema(
                 <DroppableZone
                   key={posKey}
                   id={`pos:${posKey}`}
-                  className="w-16 h-12 border-2 border-dashed border-amber-300 dark:border-amber-700 rounded-lg flex items-center justify-center"
+                  className="w-12 h-10 sm:w-14 md:w-16 md:h-12 border-2 border-dashed border-amber-300 dark:border-amber-700 rounded-lg flex items-center justify-center shrink-0"
                 >
                   {tire ? (
                     <DraggableTire pneu={tire} />
@@ -352,13 +352,13 @@ export default function Pneus() {
   const sensors = useSensors(
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 100,
-        tolerance: 5,
+        delay: 150,
+        tolerance: 8,
       },
     }),
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5,
       },
     })
   );
