@@ -348,18 +348,19 @@ export default function Pneus() {
   const [sucataMotivo, setSucataMotivo] = useState('');
   const [sucataSulco, setSucataSulco] = useState('');
 
-  // DnD sensors — PointerSensor para desktop, TouchSensor para mobile
+  // DnD sensors — apenas TouchSensor para mobile (sem PointerSensor que interfere)
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const sensors = useSensors(
     useSensor(TouchSensor, {
       activationConstraint: {
         delay: 50,
-        tolerance: 12,
+        tolerance: 10,
       },
     }),
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
+      activationConstraint: isMobile
+        ? { distance: 999 } // Desativa PointerSensor no mobile
+        : { distance: 8 },
     })
   );
 
