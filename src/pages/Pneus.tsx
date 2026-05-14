@@ -133,17 +133,9 @@ const DraggableTire: React.FC<{ pneu: Pneu; disabled?: boolean; compact?: boolea
     disabled: disabled || pneu.status === 'sucata',
     data: { pneu },
   });
-  const transformString = transform
-    ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
-    : undefined;
-
   const style: React.CSSProperties = {
-    transform: transformString,
-    opacity: isDragging ? 0.5 : 1,
-    willChange: isDragging ? 'transform' : 'auto',
-    touchAction: 'manipulation',
-    transition: isDragging ? 'none' : undefined,
-    zIndex: isDragging ? 50 : 'auto',
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0 : 1,
   };
 
   return (
@@ -152,7 +144,7 @@ const DraggableTire: React.FC<{ pneu: Pneu; disabled?: boolean; compact?: boolea
       style={style}
       {...listeners}
       {...attributes}
-      className={`relative rounded-lg text-xs font-bold cursor-grab select-none ${VIDA_CLASSES[vida]} ${
+      className={`rounded-lg text-xs font-bold cursor-grab select-none ${VIDA_CLASSES[vida]} ${
         disabled ? 'cursor-default opacity-60' : ''
       } ${compact ? 'w-full h-full flex flex-col items-center justify-center px-1 py-1' : 'px-3 py-2 w-full'}`}
       title={`Nº Fogo: ${pneu.numeroFogo} | ${pneu.marca} | ${pneu.medida} | ${VIDA_LABEL[vida]} | ${pneu.kmTotal.toLocaleString('pt-BR')} km`}
@@ -357,12 +349,11 @@ export default function Pneus() {
   const [sucataSulco, setSucataSulco] = useState('');
 
   // DnD sensors — configured for both mobile and desktop
-  // TouchSensor: small distance for responsive touch dragging
-  // PointerSensor: higher distance to prevent accidental clicks on desktop
   const sensors = useSensors(
     useSensor(TouchSensor, {
       activationConstraint: {
-        distance: 5, // small distance for responsive touch, avoids accidental drags
+        delay: 100, // small delay helps detect touch movement on mobile
+        tolerance: 8,
       },
     }),
     useSensor(PointerSensor, {
@@ -1029,7 +1020,7 @@ export default function Pneus() {
               </div>
 
               {/* DragOverlay: card compacto durante drag */}
-              <DragOverlay dropAnimation={null}>
+              <DragOverlay modifiers={[snapCompactToCursor]} dropAnimation={null}>
                 {activePneu ? <TireCardCompact pneu={activePneu} /> : null}
               </DragOverlay>
             </DndContext>
