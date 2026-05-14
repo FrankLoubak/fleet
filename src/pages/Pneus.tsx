@@ -21,6 +21,7 @@ import {
   DragOverlay,
   Modifier,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   useDroppable,
@@ -347,9 +348,19 @@ export default function Pneus() {
   const [sucataMotivo, setSucataMotivo] = useState('');
   const [sucataSulco, setSucataSulco] = useState('');
 
-  // DnD sensors
+  // DnD sensors — PointerSensor para desktop, TouchSensor para mobile
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 100,
+        tolerance: 5,
+      },
+    }),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
   );
 
   // ---------------------------------------------------------------------------
