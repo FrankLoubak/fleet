@@ -155,11 +155,18 @@ const DraggableTire: React.FC<{
     longPressTimerRef.current = setTimeout(() => {
       onLongPressStart?.();
     }, 500);
+    // Call the original listeners handler
+    if (listeners && 'onPointerDown' in listeners) {
+      (listeners as any).onPointerDown(e);
+    }
   };
 
   const handlePointerUp = () => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
+    }
+    if (listeners && 'onPointerUp' in listeners) {
+      (listeners as any).onPointerUp?.();
     }
   };
 
@@ -174,12 +181,8 @@ const DraggableTire: React.FC<{
     <div
       ref={setNodeRef}
       style={style}
-      {...listeners}
       {...attributes}
-      onPointerDown={(e) => {
-        handlePointerDown(e);
-        listeners?.onPointerDown?.(e as any);
-      }}
+      onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
       className={`rounded-lg text-xs font-bold cursor-grab select-none transition-all ${
