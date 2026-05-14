@@ -133,11 +133,17 @@ const DraggableTire: React.FC<{ pneu: Pneu; disabled?: boolean; compact?: boolea
     disabled: disabled || pneu.status === 'sucata',
     data: { pneu },
   });
+  const transformString = transform
+    ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
+    : undefined;
+
   const style: React.CSSProperties = {
-    transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0 : 1,
+    transform: transformString,
+    opacity: isDragging ? 0.5 : 1,
     willChange: isDragging ? 'transform' : 'auto',
-    touchAction: 'none',
+    touchAction: 'manipulation',
+    transition: isDragging ? 'none' : undefined,
+    zIndex: isDragging ? 50 : 'auto',
   };
 
   return (
@@ -1022,7 +1028,7 @@ export default function Pneus() {
               </div>
 
               {/* DragOverlay: card compacto durante drag */}
-              <DragOverlay modifiers={[snapCompactToCursor]} dropAnimation={null}>
+              <DragOverlay dropAnimation={null}>
                 {activePneu ? <TireCardCompact pneu={activePneu} /> : null}
               </DragOverlay>
             </DndContext>
