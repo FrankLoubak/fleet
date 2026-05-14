@@ -122,20 +122,52 @@ const TireCardCompact: React.FC<{ pneu: Pneu }> = ({ pneu }) => {
 // DraggableTire — standalone component
 // ---------------------------------------------------------------------------
 
-const DraggableTire: React.FC<{ pneu: Pneu; disabled?: boolean; compact?: boolean }> = ({
+const DraggableTire: React.FC<{
+  pneu: Pneu
+  disabled?: boolean
+  compact?: boolean
+  isLongPressed?: boolean
+  onLongPressStart?: () => void
+  onLongPressEnd?: () => void
+}> = ({
   pneu,
   disabled,
   compact = false,
+  isLongPressed = false,
+  onLongPressStart,
+  onLongPressEnd,
 }) => {
   const vida = derivarVida(pneu);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: pneu.id,
     disabled: disabled || pneu.status === 'sucata',
     data: { pneu },
   });
+
   const style: React.CSSProperties = {
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0 : 1,
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    longPressTimerRef.current = setTimeout(() => {
+      onLongPressStart?.();
+    }, 500);
+  };
+
+  const handlePointerUp = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+  };
+
+  const handlePointerCancel = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+    onLongPressEnd?.();
   };
 
   return (
@@ -144,10 +176,18 @@ const DraggableTire: React.FC<{ pneu: Pneu; disabled?: boolean; compact?: boolea
       style={style}
       {...listeners}
       {...attributes}
-      className={`rounded-lg text-xs font-bold cursor-grab select-none ${VIDA_CLASSES[vida]} ${
+      onPointerDown={(e) => {
+        handlePointerDown(e);
+        listeners?.onPointerDown?.(e as any);
+      }}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      className={`rounded-lg text-xs font-bold cursor-grab select-none transition-all ${
+        isLongPressed ? 'ring-2 ring-offset-2 ring-primary scale-105 shadow-lg' : ''
+      } ${VIDA_CLASSES[vida]} ${
         disabled ? 'cursor-default opacity-60' : ''
       } ${compact ? 'w-full h-full flex flex-col items-center justify-center px-1 py-1' : 'px-3 py-2 w-full'}`}
-      title={`Nº Fogo: ${pneu.numeroFogo} | ${pneu.marca} | ${pneu.medida} | ${VIDA_LABEL[vida]} | ${pneu.kmTotal.toLocaleString('pt-BR')} km`}
+      title={`${isLongPressed ? '🎯 ' : ''}Nº Fogo: ${pneu.numeroFogo} | ${pneu.marca} | ${pneu.medida} | ${VIDA_LABEL[vida]} | ${pneu.kmTotal.toLocaleString('pt-BR')} km`}
     >
       {compact ? (
         <>
@@ -192,12 +232,14 @@ const DroppableZone: React.FC<{
 };
 
 // ---------------------------------------------------------------------------
-// Axle schema renderer — pure function (not a hook-dependent component)
+// Axle schema renderer — React component
 // ---------------------------------------------------------------------------
 
 function renderAxleSchema(
   config: VehicleConfig,
-  tiresByPosition: Map<string, Pneu>
+  tiresByPosition: Map<string, Pneu>,
+  longPressId: string | null,
+  setLongPressId: (id: string | null) => void
 ) {
   const eixos = [
     { n: 1, count: config.eixo1 },
@@ -231,7 +273,13 @@ function renderAxleSchema(
                       className="w-12 h-10 sm:w-14 md:w-16 md:h-12 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex items-center justify-center shrink-0"
                     >
                       {tire ? (
-                        <DraggableTire pneu={tire} compact />
+                        <DraggableTire
+                          pneu={tire}
+                          compact
+                          isLongPressed={longPressId === tire.id}
+                          onLongPressStart={() => setLongPressId(tire.id)}
+                          onLongPressEnd={() => setLongPressId(null)}
+                        />
                       ) : (
                         <span className="text-xs text-slate-400">{slot}</span>
                       )}
@@ -252,7 +300,13 @@ function renderAxleSchema(
                       className="w-12 h-10 sm:w-14 md:w-16 md:h-12 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex items-center justify-center shrink-0"
                     >
                       {tire ? (
-                        <DraggableTire pneu={tire} compact />
+                        <DraggableTire
+                          pneu={tire}
+                          compact
+                          isLongPressed={longPressId === tire.id}
+                          onLongPressStart={() => setLongPressId(tire.id)}
+                          onLongPressEnd={() => setLongPressId(null)}
+                        />
                       ) : (
                         <span className="text-xs text-slate-400">{slot}</span>
                       )}
@@ -280,7 +334,12 @@ function renderAxleSchema(
                   className="w-12 h-10 sm:w-14 md:w-16 md:h-12 border-2 border-dashed border-amber-300 dark:border-amber-700 rounded-lg flex items-center justify-center shrink-0"
                 >
                   {tire ? (
-                    <DraggableTire pneu={tire} />
+                    <DraggableTire
+                      pneu={tire}
+                      isLongPressed={longPressId === tire.id}
+                      onLongPressStart={() => setLongPressId(tire.id)}
+                      onLongPressEnd={() => setLongPressId(null)}
+                    />
                   ) : (
                     <span className="text-xs text-amber-400">R{i + 1}</span>
                   )}
@@ -332,6 +391,8 @@ export default function Pneus() {
   const [movimentandoId, setMovimentandoId] = useState<string | null>(null);
   const [activePneu, setActivePneu] = useState<Pneu | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [longPressId, setLongPressId] = useState<string | null>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // New tire form
   const [novoPneuForm, setNovoPneuForm] = useState({
@@ -903,7 +964,7 @@ export default function Pneus() {
                       <Loader2 className="w-4 h-4 text-primary animate-spin ml-auto" />
                     )}
                   </div>
-                  {renderAxleSchema(selectedConfig, tiresByPosition)}
+                  {renderAxleSchema(selectedConfig, tiresByPosition, longPressId, setLongPressId)}
                 </div>
               )}
 
@@ -965,7 +1026,15 @@ export default function Pneus() {
                         Nenhum pneu em estoque
                       </p>
                     ) : (
-                      stockTires.map((p) => <DraggableTire key={p.id} pneu={p} />)
+                      stockTires.map((p) => (
+                        <DraggableTire
+                          key={p.id}
+                          pneu={p}
+                          isLongPressed={longPressId === p.id}
+                          onLongPressStart={() => setLongPressId(p.id)}
+                          onLongPressEnd={() => setLongPressId(null)}
+                        />
+                      ))
                     )}
                   </div>
                 </DroppableZone>
@@ -989,7 +1058,15 @@ export default function Pneus() {
                         Nenhum pneu em conserto
                       </p>
                     ) : (
-                      repairTires.map((p) => <DraggableTire key={p.id} pneu={p} />)
+                      repairTires.map((p) => (
+                        <DraggableTire
+                          key={p.id}
+                          pneu={p}
+                          isLongPressed={longPressId === p.id}
+                          onLongPressStart={() => setLongPressId(p.id)}
+                          onLongPressEnd={() => setLongPressId(null)}
+                        />
+                      ))
                     )}
                   </div>
                 </DroppableZone>
@@ -1013,7 +1090,16 @@ export default function Pneus() {
                         Nenhum pneu sucateado
                       </p>
                     ) : (
-                      scrapTires.map((p) => <DraggableTire key={p.id} pneu={p} disabled />)
+                      scrapTires.map((p) => (
+                        <DraggableTire
+                          key={p.id}
+                          pneu={p}
+                          disabled
+                          isLongPressed={longPressId === p.id}
+                          onLongPressStart={() => setLongPressId(p.id)}
+                          onLongPressEnd={() => setLongPressId(null)}
+                        />
+                      ))
                     )}
                   </div>
                 </DroppableZone>
