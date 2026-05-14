@@ -348,20 +348,10 @@ export default function Pneus() {
   const [sucataMotivo, setSucataMotivo] = useState('');
   const [sucataSulco, setSucataSulco] = useState('');
 
-  // DnD sensors — apenas TouchSensor para mobile (sem PointerSensor que interfere)
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  // DnD sensors — use defaults that work on both desktop and mobile
   const sensors = useSensors(
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 50,
-        tolerance: 10,
-      },
-    }),
-    useSensor(PointerSensor, {
-      activationConstraint: isMobile
-        ? { distance: 999 } // Desativa PointerSensor no mobile
-        : { distance: 8 },
-    })
+    useSensor(TouchSensor),
+    useSensor(PointerSensor)
   );
 
   // ---------------------------------------------------------------------------
@@ -1020,8 +1010,8 @@ export default function Pneus() {
                 </DroppableZone>
               </div>
 
-              {/* DragOverlay: card compacto centralizado no cursor */}
-              <DragOverlay dropAnimation={null} modifiers={[snapCompactToCursor]}>
+              {/* DragOverlay: card compacto durante drag */}
+              <DragOverlay dropAnimation={null}>
                 {activePneu ? <TireCardCompact pneu={activePneu} /> : null}
               </DragOverlay>
             </DndContext>
