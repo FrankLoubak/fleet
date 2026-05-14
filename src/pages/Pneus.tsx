@@ -136,6 +136,8 @@ const DraggableTire: React.FC<{ pneu: Pneu; disabled?: boolean; compact?: boolea
   const style: React.CSSProperties = {
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0 : 1,
+    willChange: isDragging ? 'transform' : 'auto',
+    touchAction: 'none',
   };
 
   return (
@@ -144,7 +146,7 @@ const DraggableTire: React.FC<{ pneu: Pneu; disabled?: boolean; compact?: boolea
       style={style}
       {...listeners}
       {...attributes}
-      className={`rounded-lg text-xs font-bold cursor-grab select-none ${VIDA_CLASSES[vida]} ${
+      className={`relative rounded-lg text-xs font-bold cursor-grab select-none ${VIDA_CLASSES[vida]} ${
         disabled ? 'cursor-default opacity-60' : ''
       } ${compact ? 'w-full h-full flex flex-col items-center justify-center px-1 py-1' : 'px-3 py-2 w-full'}`}
       title={`Nº Fogo: ${pneu.numeroFogo} | ${pneu.marca} | ${pneu.medida} | ${VIDA_LABEL[vida]} | ${pneu.kmTotal.toLocaleString('pt-BR')} km`}
@@ -348,10 +350,19 @@ export default function Pneus() {
   const [sucataMotivo, setSucataMotivo] = useState('');
   const [sucataSulco, setSucataSulco] = useState('');
 
-  // DnD sensors — use defaults that work on both desktop and mobile
+  // DnD sensors — TouchSensor for mobile, PointerSensor for mouse
+  // TouchSensor distance: 0 allows immediate drag, tolerance helps with accidental clicks
   const sensors = useSensors(
-    useSensor(TouchSensor),
-    useSensor(PointerSensor)
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        distance: 0,
+      },
+    }),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
   );
 
   // ---------------------------------------------------------------------------
@@ -1011,7 +1022,7 @@ export default function Pneus() {
               </div>
 
               {/* DragOverlay: card compacto durante drag */}
-              <DragOverlay dropAnimation={null}>
+              <DragOverlay modifiers={[snapCompactToCursor]} dropAnimation={null}>
                 {activePneu ? <TireCardCompact pneu={activePneu} /> : null}
               </DragOverlay>
             </DndContext>
