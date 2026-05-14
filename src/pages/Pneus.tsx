@@ -356,12 +356,13 @@ export default function Pneus() {
   const [sucataMotivo, setSucataMotivo] = useState('');
   const [sucataSulco, setSucataSulco] = useState('');
 
-  // DnD sensors — TouchSensor for mobile, PointerSensor for mouse
-  // TouchSensor distance: 0 allows immediate drag, tolerance helps with accidental clicks
+  // DnD sensors — configured for both mobile and desktop
+  // TouchSensor: small distance for responsive touch dragging
+  // PointerSensor: higher distance to prevent accidental clicks on desktop
   const sensors = useSensors(
     useSensor(TouchSensor, {
       activationConstraint: {
-        distance: 0,
+        distance: 5, // small distance for responsive touch, avoids accidental drags
       },
     }),
     useSensor(PointerSensor, {
