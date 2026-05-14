@@ -330,6 +330,7 @@ export default function Pneus() {
   } | null>(null);
   const [movimentandoId, setMovimentandoId] = useState<string | null>(null);
   const [activePneu, setActivePneu] = useState<Pneu | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // New tire form
   const [novoPneuForm, setNovoPneuForm] = useState({
@@ -486,7 +487,13 @@ export default function Pneus() {
       setImportSelected([]);
       setImportFileName('');
       await loadPneus();
-    } catch {
+    } catch (error) {
+      const errorMsg = error instanceof Error
+        ? error.message
+        : typeof error === 'object' && error !== null && 'message' in error
+        ? String((error as any).message)
+        : String(error);
+      setErrorMessage(errorMsg);
       toast.error('Erro ao importar pneus.');
     } finally {
       setImportInserting(false);
@@ -651,7 +658,13 @@ export default function Pneus() {
 
       await loadPneus();
       toast.success('Movimentação registrada');
-    } catch {
+    } catch (error) {
+      const errorMsg = error instanceof Error
+        ? error.message
+        : typeof error === 'object' && error !== null && 'message' in error
+        ? String((error as any).message)
+        : String(error);
+      setErrorMessage(errorMsg);
       toast.error('Erro ao registrar movimentação');
     } finally {
       setMovimentandoId(null);
@@ -1446,6 +1459,33 @@ export default function Pneus() {
                   Confirmar Sucata
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Modal */}
+      {errorMessage && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-lg max-w-md w-full">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <AlertTriangle size={20} className="text-red-500" />
+                Erro ao Gravar Movimentação
+              </h3>
+            </div>
+            <div className="p-6 max-h-64 overflow-y-auto">
+              <p className="text-sm text-slate-600 dark:text-slate-300 font-mono bg-slate-50 dark:bg-slate-800 p-4 rounded-lg break-words whitespace-pre-wrap">
+                {errorMessage}
+              </p>
+            </div>
+            <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+              <button
+                onClick={() => setErrorMessage(null)}
+                className="px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>
