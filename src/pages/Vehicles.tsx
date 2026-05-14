@@ -4,7 +4,7 @@ import { Truck, Search, Filter, ChevronRight, LayoutGrid, List as ListIcon, More
 import Sidebar from '../components/Sidebar';
 import Autocomplete from '../components/Autocomplete';
 import { cn } from '../utils';
-import { User as UserType, Journey, Vehicle, RefuelingRecord, MaintenanceRecord } from '../types';
+import { User as UserType, Journey, Vehicle, RefuelingRecord, MaintenanceRecord, VehicleConfig } from '../types';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 
@@ -16,7 +16,8 @@ export default function Vehicles() {
   const [vehicleData, setVehicleData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
+  const [vehicleConfigs, setVehicleConfigs] = useState<VehicleConfig[]>([]);
+
   // CRUD States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -101,7 +102,8 @@ export default function Vehicles() {
     lastOdometer: 0,
     vehicle_type: 'veiculo' as 'veiculo' | 'maquina',
     initial_odometer: 0,
-    initial_hourmeter: 0
+    initial_hourmeter: 0,
+    configId: '' as string
   });
 
   useEffect(() => {
@@ -112,6 +114,18 @@ export default function Vehicles() {
     }
     setCurrentUser(JSON.parse(userJson));
     loadVehicles();
+    supabase.from('vehicle_configs').select('*').order('nome').then(({ data }) => {
+      if (data) setVehicleConfigs(data.map(r => ({
+        id: r.id as string,
+        nome: r.nome as string,
+        eixo1: r.eixo_1 as number,
+        eixo2: r.eixo_2 as number | null,
+        eixo3: r.eixo_3 as number | null,
+        eixo4: r.eixo_4 as number | null,
+        pneusReserva: r.pneus_reserva as number,
+        createdAt: r.created_at as string,
+      })));
+    });
   }, [navigate]);
 
   const loadVehicles = async () => {
@@ -173,7 +187,8 @@ export default function Vehicles() {
         lastOdometer: vehicle.lastOdometer,
         vehicle_type: vehicle.vehicle_type || 'veiculo',
         initial_odometer: vehicle.initial_odometer || 0,
-        initial_hourmeter: vehicle.initial_hourmeter || 0
+        initial_hourmeter: vehicle.initial_hourmeter || 0,
+        configId: (vehicle as Record<string, unknown>).config_id as string || ''
       });
     } else {
       setEditingVehicle(null);
@@ -184,7 +199,8 @@ export default function Vehicles() {
         lastOdometer: 0,
         vehicle_type: 'veiculo',
         initial_odometer: 0,
-        initial_hourmeter: 0
+        initial_hourmeter: 0,
+        configId: ''
       });
     }
     setIsModalOpen(true);
@@ -202,6 +218,7 @@ export default function Vehicles() {
         vehicle_type: formData.vehicle_type,
         initial_odometer: formData.initial_odometer,
         initial_hourmeter: formData.initial_hourmeter,
+        config_id: formData.configId || null,
       };
 
       if (!editingVehicle) {
@@ -796,8 +813,28 @@ export default function Vehicles() {
                     </div>
                   )}
 
+                  {formData.vehicle_type === 'veiculo' && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                        Configuração de Eixos
+                      </label>
+                      <select
+                        value={formData.configId}
+                        onChange={(e) => setFormData({ ...formData, configId: e.target.value })}
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-2 focus:ring-primary dark:text-white"
+                      >
+                        <option value="">Sem configuração</option>
+                        {vehicleConfigs.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   <div className="pt-4 flex gap-3">
-                    <button 
+                    <button
                       type="button"
                       onClick={() => setIsModalOpen(false)}
                       className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"

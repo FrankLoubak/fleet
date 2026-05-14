@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Truck, Car, BarChart3, User, LogOut, Mail, Phone, Shield, ChevronDown, Play, Clock, Wrench, X, AlertCircle, Users } from 'lucide-react';
+import { Truck, Car, BarChart3, User, LogOut, Mail, Phone, Shield, ChevronDown, Play, Clock, Wrench, X, AlertCircle, Users, Settings2, CircleDot, ArrowRightLeft } from 'lucide-react';
 import { cn } from '../utils';
 import { User as UserType } from '../types';
 import { supabase } from '../lib/supabase';
@@ -12,15 +12,20 @@ const navItems = [
   { icon: Clock, label: 'Jornadas', path: '/journeys', adminOnly: true },
   { icon: Clock, label: 'Banco de Horas', path: '/time-bank' },
   { icon: BarChart3, label: 'Relatórios', path: '/dashboard', adminOnly: true },
+  { icon: Settings2, label: 'Config. Veículos', path: '/vehicle-configs', adminOnly: true },
+  { icon: CircleDot,  label: 'Pneus',            path: '/pneus',           adminOnly: true },
   { icon: Users, label: 'Usuários', path: '/users', rootOnly: true },
   { icon: User, label: 'Perfil', path: '/profile' },
 ];
+
+const PNEUS_PATHS = ['/pneus', '/movimentacoes-pneus'];
 
 export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isPneusOpen, setIsPneusOpen] = useState(false);
   const [maintenanceCount, setMaintenanceCount] = useState(0);
   const [journeyCount, setJourneyCount] = useState(0);
 
@@ -61,6 +66,11 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     
     fetchAlerts();
   }, [currentUser]);
+
+  // Auto-abre o sub-menu de pneus quando em uma rota de pneus
+  useEffect(() => {
+    if (PNEUS_PATHS.includes(location.pathname)) setIsPneusOpen(true);
+  }, [location.pathname]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -191,6 +201,56 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
                         Ver Perfil Completo
                       </button>
                     </div>
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // Item Pneus: accordion com sub-menu
+          if (item.label === 'Pneus') {
+            const isPneusActive = PNEUS_PATHS.includes(location.pathname);
+            return (
+              <div key={item.path}>
+                <button
+                  onClick={() => setIsPneusOpen(o => !o)}
+                  className={cn(
+                    "w-full flex items-center justify-between px-3 py-3 rounded-xl font-medium transition-all duration-200",
+                    isPneusActive
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-200 dark:shadow-none"
+                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  )}
+                >
+                  <div className="flex items-center gap-4">
+                    <item.icon size={22} className={cn(isPneusActive ? "text-white" : "text-slate-500")} />
+                    <span className="text-[15px]">Pneus</span>
+                  </div>
+                  <ChevronDown size={15} className={cn("transition-transform duration-200", isPneusOpen && "rotate-180", isPneusActive ? "text-white" : "text-slate-400")} />
+                </button>
+                {isPneusOpen && (
+                  <div className="mt-1 ml-8 space-y-0.5">
+                    {[
+                      { label: 'Pneus', path: '/pneus', icon: CircleDot },
+                      { label: 'Movimentação', path: '/movimentacoes-pneus', icon: ArrowRightLeft },
+                    ].map(sub => {
+                      const subActive = location.pathname === sub.path;
+                      return (
+                        <Link
+                          key={sub.path}
+                          to={sub.path}
+                          onClick={() => { if (onClose) onClose(); }}
+                          className={cn(
+                            "flex items-center gap-3 px-3 py-2 rounded-lg text-[14px] font-medium transition-all duration-150",
+                            subActive
+                              ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                              : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          )}
+                        >
+                          <sub.icon size={16} className={cn(subActive ? "text-blue-600 dark:text-blue-400" : "text-slate-400")} />
+                          {sub.label}
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
               </div>

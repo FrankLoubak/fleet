@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+
+<html class="light" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Controle de Pneus - Movimentações</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error-container": "#f9dedc",
+                        "outline": "#79747e",
+                        "secondary-fixed-dim": "#bec6e0",
+                        "surface-container-low": "#f7f2fa",
+                        "primary": "#7c5800",
+                        "secondary": "#595d71",
+                        "on-secondary-fixed": "#131b2e",
+                        "surface-container": "#f3edf7",
+                        "on-primary": "#ffffff",
+                        "on-background": "#1d1b20",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-container": "#1d192b",
+                        "on-primary-fixed-variant": "#5e4200",
+                        "surface-tint": "#ffba20",
+                        "on-primary-fixed": "#271900",
+                        "tertiary-container": "#ffd8e4",
+                        "primary-fixed": "#ffdea8",
+                        "secondary-fixed": "#dae2fd",
+                        "outline-variant": "#c4c7d0",
+                        "on-secondary": "#ffffff",
+                        "surface-dim": "#ded8e1",
+                        "on-error": "#ffffff",
+                        "surface-bright": "#fef7ff",
+                        "surface-container-high": "#ece6f0",
+                        "on-error-container": "#410002",
+                        "tertiary-fixed": "#ffd8e4",
+                        "primary-fixed-dim": "#ffba20",
+                        "surface-variant": "#e7e0ec",
+                        "on-secondary-fixed-variant": "#3f465c",
+                        "inverse-primary": "#ffdca1",
+                        "on-tertiary-fixed-variant": "#39485a",
+                        "inverse-surface": "#322f35",
+                        "on-primary-container": "#271900",
+                        "on-surface-variant": "#49454f",
+                        "error": "#b3261e",
+                        "primary-container": "#ffdea8",
+                        "tertiary-fixed-dim": "#efb8c8",
+                        "on-tertiary": "#ffffff",
+                        "on-surface": "#1d1b20",
+                        "tertiary": "#7d5260",
+                        "surface-container-highest": "#e6e1e5",
+                        "inverse-on-surface": "#f5eff7",
+                        "on-secondary-container": "#161b2c",
+                        "background": "#f9f9f9",
+                        "surface": "#fef7ff",
+                        "secondary-container": "#e1e2ec",
+                        "on-tertiary-fixed": "#0d1c2d"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "margin": "32px",
+                        "sm": "8px",
+                        "xl": "48px",
+                        "lg": "24px",
+                        "unit": "4px",
+                        "xs": "4px",
+                        "md": "16px",
+                        "gutter": "20px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Space Grotesk"],
+                        "label-bold": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-xl": ["Space Grotesk"],
+                        "label-md": ["Inter"],
+                        "headline-lg": ["Space Grotesk"],
+                        "body-lg": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "h1": ["Space Grotesk"],
+                        "h2": ["Space Grotesk"],
+                        "label-mono": ["Space Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "label-bold": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "h1": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "h2": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "label-mono": ["13px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .tire-active { border: 2px solid #7c5800; box-shadow: 0 0 8px rgba(124, 88, 0, 0.2); }
+        .tire-red { background-color: #b3261e; color: white; }
+        .tire-orange { background-color: #ffdea8; color: #7c5800; border: 1px solid #7c5800; }
+        .tire-green { background-color: #2e7d32; color: white; }
+        .tire-blue { background-color: #e1e2ec; color: #595d71; border: 1px solid #c4c7d0; }
+        .tire-white { background-color: #ffffff; color: #1d1b20; border: 1px solid #c4c7d0; }
+        .tire-sand { background-color: #f7f2fa; color: #49454f; border: 1px solid #c4c7d0; }
+        
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen pb-24">
+<header class="flex justify-between items-center px-margin py-sm w-full z-50 bg-white border-b border-outline-variant fixed top-0 docked full-width">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary" data-icon="menu">menu</span>
+<h1 class="font-h1 text-h1 text-on-surface">Controle de Pneus</h1>
+</div>
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center overflow-hidden border border-outline-variant">
+<img alt="Gestor de Frota" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSJ8J5dxDxgVlNxlXx6UU-VMAAq9NnAKDCXJTQtQ0lcjtL321o3NH_R5edjNB9xOVUl-HJ-4m13JJZaYTi1vaOlh21ilYMVCIQzp0E-7j-zkfJzyNMfsdT3U8guSBmtJIciIDK3m8XWCxLJNv43-t7if0ZkUiZvUgQQhNcoFMbqDto-SOFTgnuY0YP-voAOcdPJwnYlU47ARRwBC76s5ilszb3mgAqdpDdGgwWgirkW9phpcrATwvhPvsvFbk8nl_g-DRtlOljayg"/>
+</div>
+</header>
+<main class="mt-20 px-margin py-lg space-y-lg">
+<!-- Search & Quick Info -->
+<section class="bg-white border border-outline-variant rounded-xl p-md shadow-sm">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-primary" data-icon="search">search</span>
+<input class="w-full pl-xl pr-md py-sm rounded-lg border border-outline-variant bg-surface-container-low text-on-surface focus:ring-primary focus:border-primary font-body-md outline-none transition-all placeholder:text-on-surface-variant/50" placeholder="Buscar veículo ou pneu..." type="text"/>
+</div>
+<div class="mt-md flex justify-between items-end">
+<div>
+<span class="font-label-bold text-primary block uppercase text-[10px]">VEÍCULO ATUAL</span>
+<span class="font-h2 text-h2 text-on-surface">FL-4509 (RODOTREM)</span>
+</div>
+<div class="text-right">
+<span class="font-label-bold text-on-surface-variant block uppercase text-[10px]">KM TOTAL</span>
+<span class="font-label-mono text-label-mono text-on-surface">1.240.500 KM</span>
+</div>
+</div>
+</section>
+<!-- Truck Schematic (Vertical) -->
+<section class="flex flex-col items-center space-y-xl py-md bg-white border border-outline-variant rounded-xl shadow-sm">
+<h3 class="font-label-bold text-on-surface-variant uppercase tracking-widest text-[11px]">Esquema de Eixos</h3>
+<!-- Axle 1 - Front (Steering) -->
+<div class="flex justify-between w-64 items-center px-lg">
+<div class="flex flex-col items-center gap-xs">
+<div class="w-10 h-16 rounded-lg tire-green flex items-center justify-center font-label-mono text-[10px] shadow-sm"><div class="flex flex-col items-center leading-tight"><span class="font-label-mono">DE</span><span class="text-[8px] opacity-90">PN-1001</span></div></div>
+</div>
+<div class="h-2 w-16 bg-outline-variant rounded-full"></div>
+<div class="flex flex-col items-center gap-xs">
+<div class="w-10 h-16 rounded-lg tire-green flex items-center justify-center font-label-mono text-[10px] shadow-sm"><div class="flex flex-col items-center leading-tight"><span class="font-label-mono">DD</span><span class="text-[8px] opacity-90">PN-1002</span></div></div>
+</div>
+</div>
+<!-- Axle 2 - Traction -->
+<div class="flex justify-between w-64 items-center px-base">
+<div class="flex gap-base">
+<div class="w-10 h-16 rounded-lg tire-orange flex items-center justify-center font-label-mono text-[10px] shadow-sm"><div class="flex flex-col items-center leading-tight"><span class="font-label-mono">1EE</span><span class="text-[8px] opacity-90">PN-1003</span></div></div>
+<div class="w-10 h-16 rounded-lg tire-orange flex items-center justify-center font-label-mono text-[10px] shadow-sm"><div class="flex flex-col items-center leading-tight"><span class="font-label-mono">1EI</span><span class="text-[8px] opacity-90">PN-1004</span></div></div>
+</div>
+<div class="h-2 w-8 bg-outline-variant rounded-full"></div>
+<div class="flex gap-base">
+<div class="w-10 h-16 rounded-lg border-2 border-primary flex items-center justify-center font-label-mono text-[10px] shadow-lg tire-blue"><div class="flex flex-col items-center leading-tight"><span class="font-label-mono text-primary">1DI</span><span class="text-[8px] opacity-90">PN-1005</span></div></div>
+<div class="w-10 h-16 rounded-lg tire-orange flex items-center justify-center font-label-mono text-[10px] shadow-sm"><div class="flex flex-col items-center leading-tight"><span class="font-label-mono">1DE</span><span class="text-[8px] opacity-90">PN-1006</span></div></div>
+</div>
+</div>
+<!-- Axle 3 - Traction -->
+<div class="flex justify-between w-64 items-center px-base">
+<div class="flex gap-base">
+<div class="w-10 h-16 rounded-lg tire-red flex items-center justify-center font-label-mono text-[10px] shadow-sm"><div class="flex flex-col items-center leading-tight"><span class="font-label-mono">2EE</span><span class="text-[8px] opacity-90">PN-1007</span></div></div>
+<div class="w-10 h-16 rounded-lg tire-red flex items-center justify-center font-label-mono text-[10px] shadow-sm"><div class="flex flex-col items-center leading-tight"><span class="font-label-mono">2EI</span><span class="text-[8px] opacity-90">PN-1008</span></div></div>
+</div>
+<div class="h-2 w-8 bg-outline-variant rounded-full"></div>
+<div class="flex gap-base">
+<div class="w-10 h-16 rounded-lg tire-red flex items-center justify-center font-label-mono text-[10px] shadow-sm"><div class="flex flex-col items-center leading-tight"><span class="font-label-mono">2DI</span><span class="text-[8px] opacity-90">PN-1009</span></div></div>
+<div class="w-10 h-16 rounded-lg tire-red flex items-center justify-center font-label-mono text-[10px] shadow-sm"><div class="flex flex-col items-center leading-tight"><span class="font-label-mono">2DE</span><span class="text-[8px] opacity-90">PN-1010</span></div></div>
+</div>
+</div>
+<!-- Legend -->
+<div class="flex flex-wrap justify-center gap-md px-md pt-md border-t border-outline-variant w-full">
+<div class="flex items-center gap-xs"><div class="w-3 h-3 rounded-sm tire-green"></div><span class="text-[10px] font-label-bold uppercase">Novo</span></div>
+<div class="flex items-center gap-xs"><div class="w-3 h-3 rounded-sm bg-primary"></div><span class="text-[10px] font-label-bold uppercase">1 vida</span></div>
+<div class="flex items-center gap-xs"><div class="w-3 h-3 rounded-sm tire-red"></div><span class="text-[10px] font-label-bold uppercase">2vida</span></div>
+<div class="flex items-center gap-xs"><div class="w-3 h-3 rounded-sm tire-blue"></div><span class="text-[10px] font-label-bold uppercase text-secondary">Conserto</span></div>
+</div>
+</section>
+<!-- Inventory Lists (Table Format) -->
+<section class="space-y-xl">
+<!-- Estoque -->
+<div class="space-y-sm">
+<div class="flex items-center gap-sm px-xs">
+<span class="material-symbols-outlined text-primary" data-icon="inventory_2">inventory_2</span>
+<h2 class="font-h2 text-h2 uppercase text-[16px] tracking-tight text-on-surface">Estoque (Disponível)</h2>
+</div>
+<div class="overflow-x-auto border border-outline-variant rounded-xl bg-white shadow-sm no-scrollbar">
+<table class="w-full text-left border-collapse min-w-[600px]">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="w-4 p-md"></th>
+<th class="p-md font-label-bold text-[10px] text-primary uppercase">No. Fogo</th>
+<th class="p-md font-label-bold text-[10px] text-on-surface-variant uppercase">Medida</th>
+<th class="p-md font-label-bold text-[10px] text-on-surface-variant uppercase">Marca</th>
+<th class="p-md font-label-bold text-[10px] text-on-surface-variant uppercase">KM Atual</th>
+<th class="p-md font-label-bold text-[10px] text-on-surface-variant uppercase">Data Entrada</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr>
+<td class="p-md text-center"><div class="w-3 h-3 rounded-full bg-primary mx-auto" title="1 Vida"></div></td>
+<td class="p-md font-label-mono text-primary font-bold">#PN-99212</td>
+<td class="p-md font-body-md text-on-surface">295/80 R22.5</td>
+<td class="p-md font-body-md text-on-surface">Michelin</td>
+<td class="p-md font-label-mono text-on-surface">15.420 km</td>
+<td class="p-md font-body-md text-on-surface">15/05/2023</td>
+</tr>
+<tr>
+<td class="p-md text-center"><div class="w-3 h-3 rounded-full bg-[#2e7d32] mx-auto" title="Novo"></div></td>
+<td class="p-md font-label-mono text-primary font-bold">#PN-88741</td>
+<td class="p-md font-body-md text-on-surface">275/80 R22.5</td>
+<td class="p-md font-body-md text-on-surface">Bridgestone</td>
+<td class="p-md font-label-mono text-on-surface">0 km</td>
+<td class="p-md font-body-md text-on-surface">02/11/2023</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Ag. Conserto -->
+<div class="space-y-sm">
+<div class="flex items-center gap-sm px-xs">
+<span class="material-symbols-outlined text-secondary" data-icon="build">build</span>
+<h2 class="font-h2 text-h2 uppercase text-[16px] tracking-tight text-on-surface">Aguardando Conserto</h2>
+</div>
+<div class="overflow-x-auto border border-outline-variant rounded-xl bg-white shadow-sm no-scrollbar">
+<table class="w-full text-left border-collapse min-w-[600px]">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="w-4 p-md"></th>
+<th class="p-md font-label-bold text-[10px] text-secondary uppercase">No. Fogo</th>
+<th class="p-md font-label-bold text-[10px] text-on-surface-variant uppercase">Medida</th>
+<th class="p-md font-label-bold text-[10px] text-on-surface-variant uppercase">Marca</th>
+<th class="p-md font-label-bold text-[10px] text-on-surface-variant uppercase">KM Atual</th>
+<th class="p-md font-label-bold text-[10px] text-on-surface-variant uppercase">Data Entrada</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr>
+<td class="p-md text-center"><div class="w-3 h-3 rounded-full bg-error mx-auto" title="2 Vidas"></div></td>
+<td class="p-md font-label-mono text-on-surface font-bold">#PN-10554</td>
+<td class="p-md font-body-md text-on-surface">295/80 R22.5</td>
+<td class="p-md font-body-md text-on-surface">Pirelli</td>
+<td class="p-md font-label-mono text-on-surface">124.800 km</td>
+<td class="p-md font-body-md text-on-surface">10/01/2022</td>
+</tr>
+<tr>
+<td class="p-md text-center"><div class="w-3 h-3 rounded-full bg-primary mx-auto" title="1 Vida"></div></td>
+<td class="p-md font-label-mono text-on-surface font-bold">#PN-22109</td>
+<td class="p-md font-body-md text-on-surface">295/80 R22.5</td>
+<td class="p-md font-body-md text-on-surface">Goodyear</td>
+<td class="p-md font-label-mono text-on-surface">88.500 km</td>
+<td class="p-md font-body-md text-on-surface">22/08/2022</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Sucata -->
+<div class="space-y-sm">
+<div class="flex items-center gap-sm px-xs">
+<span class="material-symbols-outlined text-error" data-icon="delete_forever">delete_forever</span>
+<h2 class="font-h2 text-h2 uppercase text-[16px] tracking-tight text-on-surface">Sucata</h2>
+</div>
+<div class="overflow-x-auto border border-outline-variant rounded-xl bg-white shadow-sm no-scrollbar">
+<table class="w-full text-left border-collapse min-w-[720px]">
+<thead>
+<tr class="bg-error-container/20 border-b border-outline-variant">
+<th class="w-4 p-md"></th>
+<th class="p-md font-label-bold text-[10px] text-on-surface-variant uppercase">No. Fogo</th>
+<th class="p-md font-label-bold text-[10px] text-on-surface-variant uppercase">Medida</th>
+<th class="p-md font-label-bold text-[10px] text-on-surface-variant uppercase">Marca</th>
+<th class="p-md font-label-bold text-[10px] text-on-surface-variant uppercase">KM Atual</th>
+<th class="p-md font-label-bold text-[10px] text-on-surface-variant uppercase">Data Entrada</th>
+<th class="p-md font-label-bold text-[10px] text-error uppercase">Data Sucat.</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr>
+<td class="p-md text-center"><div class="w-3 h-3 rounded-full bg-error mx-auto" title="2 Vidas"></div></td>
+<td class="p-md font-label-mono text-error font-bold">#PN-11200</td>
+<td class="p-md font-body-md text-on-surface">275/80 R22.5</td>
+<td class="p-md font-body-md text-on-surface">Continental</td>
+<td class="p-md font-label-mono text-on-surface">312.000 km</td>
+<td class="p-md font-body-md text-on-surface">12/03/2020</td>
+<td class="p-md font-body-md font-bold text-error">22/11/2023</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<!-- Recent Movements -->
+<section class="space-y-md">
+<div class="flex justify-between items-center">
+<h2 class="font-h2 text-h2 text-on-surface">Movimentações Recentes</h2>
+<span class="font-label-bold text-primary uppercase text-[11px] underline cursor-pointer">VER TUDO</span>
+</div>
+<div class="space-y-sm">
+<!-- Row 1 -->
+<div class="bg-white border border-outline-variant rounded-lg p-md flex justify-between items-center shadow-sm">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-primary border border-outline-variant">
+<span class="material-symbols-outlined" data-icon="swap_horiz">swap_horiz</span>
+</div>
+<div>
+<span class="font-label-mono text-label-mono block text-on-surface font-bold">#PN-99212</span>
+<span class="font-body-md text-on-surface-variant">Saída para Conserto</span>
+</div>
+</div>
+<div class="text-right">
+<span class="font-label-bold block text-on-surface">Ontem</span>
+<span class="font-label-mono text-[10px] text-error font-bold">CRÍTICO</span>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="bg-white border border-outline-variant rounded-lg p-md flex justify-between items-center shadow-sm">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-primary border border-outline-variant">
+<span class="material-symbols-outlined" data-icon="add_circle">add_circle</span>
+</div>
+<div>
+<span class="font-label-mono text-label-mono block text-on-surface font-bold">#PN-88741</span>
+<span class="font-body-md text-on-surface-variant">Entrada de Estoque</span>
+</div>
+</div>
+<div class="text-right">
+<span class="font-label-bold block text-on-surface">23 Nov</span>
+<span class="font-label-mono text-[10px] text-secondary font-bold">ESTOQUE</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter py-sm bg-white border-t border-outline-variant shadow-[0_-4px_12px_rgba(0,0,0,0.05)] rounded-t-xl">
+<div class="flex flex-col items-center justify-center text-secondary px-lg py-base hover:text-primary transition-all cursor-pointer">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-label-bold text-label-bold">Início</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-primary text-on-primary rounded-full px-xl py-base active:scale-95 transition-all duration-200 shadow-lg cursor-pointer">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span class="font-label-bold text-label-bold">Histórico</span>
+</div>
+</nav>
+</body></html>

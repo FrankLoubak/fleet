@@ -27,6 +27,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import toast from 'react-hot-toast';
 import { cn } from '../utils';
 import { User as UserType, Journey, Vehicle, RefuelingRecord, MaintenanceRecord } from '../types';
 import { supabase } from '../lib/supabase';
@@ -406,11 +407,105 @@ export default function Journeys() {
           .update(journeyPayload)
           .eq('id', editingJourney.id);
         if (error) throw error;
+
+        // Atualiza KM nos pneus conforme o caso:
+        // 1. Transição aberta → encerrada: acumula distância completa
+        // 2. Jornada já encerrada editada com distância diferente: aplica o delta (pode ser negativo)
+        if (formData.status === 'encerrada' && formData.vehicleId) {
+          const newDistance = formData.endOdometer && formData.startOdometer
+            ? Number(formData.endOdometer) - Number(formData.startOdometer)
+            : 0;
+
+          let kmDelta = 0;
+          if (editingJourney.status !== 'encerrada') {
+            // Transição aberta → encerrada: delta = distância total nova
+            kmDelta = newDistance;
+          } else {
+            // Jornada já encerrada: delta = diferença entre nova e antiga distância
+            const oldDistance = editingJourney.distanceTraveled ?? 0;
+            kmDelta = newDistance - oldDistance;
+          }
+
+          if (kmDelta !== 0) {
+            const { data: mountedTires } = await supabase
+              .from('pneus')
+              .select('id, km_total, km_no_ultimo_sulco, numero_fogo')
+              .eq('vehicle_id', formData.vehicleId)
+              .eq('status', 'montado');
+
+            if (mountedTires && mountedTires.length > 0) {
+              for (const tire of mountedTires) {
+                const newKm = Math.max(0, (Number(tire.km_total) || 0) + kmDelta);
+                await supabase
+                  .from('pneus')
+                  .update({ km_total: newKm })
+                  .eq('id', tire.id);
+              }
+            }
+
+            // Check if any tire needs sulco measurement (every 10k km)
+            if (kmDelta > 0) {
+              const tiresNeedingSulco: string[] = [];
+              for (const tire of mountedTires ?? []) {
+                const newKm = Math.max(0, (Number(tire.km_total) || 0) + kmDelta);
+                const kmUltimoSulco = Number(tire.km_no_ultimo_sulco) || 0;
+                if (newKm - kmUltimoSulco >= 10000) {
+                  tiresNeedingSulco.push(tire.numero_fogo ?? tire.id);
+                }
+              }
+              if (tiresNeedingSulco.length > 0) {
+                toast(`⚠️ Pneus precisam de medição de sulco: ${tiresNeedingSulco.join(', ')}`, {
+                  duration: 8000,
+                  style: { background: '#fef3c7', color: '#92400e', fontWeight: '600' },
+                });
+              }
+            }
+          }
+        }
       } else {
         const { error } = await supabase
           .from('journeys')
           .insert([journeyPayload]);
         if (error) throw error;
+
+        // Jornada retroativa criada já como encerrada: acumula KM nos pneus
+        if (formData.status === 'encerrada') {
+          const distanceTraveled = formData.endOdometer && formData.startOdometer
+            ? Number(formData.endOdometer) - Number(formData.startOdometer)
+            : 0;
+          if (distanceTraveled > 0 && formData.vehicleId) {
+            const { data: mountedTires } = await supabase
+              .from('pneus')
+              .select('id, km_total, km_no_ultimo_sulco, numero_fogo')
+              .eq('vehicle_id', formData.vehicleId)
+              .eq('status', 'montado');
+
+            if (mountedTires && mountedTires.length > 0) {
+              for (const tire of mountedTires) {
+                await supabase
+                  .from('pneus')
+                  .update({ km_total: (Number(tire.km_total) || 0) + distanceTraveled })
+                  .eq('id', tire.id);
+              }
+            }
+
+            // Check if any tire needs sulco measurement (every 10k km)
+            const tiresNeedingSulco: string[] = [];
+            for (const tire of mountedTires ?? []) {
+              const newKm = (Number(tire.km_total) || 0) + distanceTraveled;
+              const kmUltimoSulco = Number(tire.km_no_ultimo_sulco) || 0;
+              if (newKm - kmUltimoSulco >= 10000) {
+                tiresNeedingSulco.push(tire.numero_fogo ?? tire.id);
+              }
+            }
+            if (tiresNeedingSulco.length > 0) {
+              toast(`⚠️ Pneus precisam de medição de sulco: ${tiresNeedingSulco.join(', ')}`, {
+                duration: 8000,
+                style: { background: '#fef3c7', color: '#92400e', fontWeight: '600' },
+              });
+            }
+          }
+        }
       }
 
       setIsModalOpen(false);

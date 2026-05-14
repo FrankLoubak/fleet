@@ -12,6 +12,9 @@ import Journeys from './pages/Journeys';
 import MaintenanceList from './pages/MaintenanceList';
 import TimeBank from './pages/TimeBank';
 import Users from './pages/Users';
+import VehicleConfigs from './pages/VehicleConfigs';
+import Pneus from './pages/Pneus';
+import MovimentacoesPneus from './pages/MovimentacoesPneus';
 import { supabase } from './lib/supabase';
 import { AuthUser } from './types';
 
@@ -103,6 +106,9 @@ export default function App() {
         <Route path="/maintenance-list" element={<AdminRoute><MaintenanceList /></AdminRoute>} />
         <Route path="/refueling" element={<AdminRoute><Refueling /></AdminRoute>} />
         <Route path="/maintenance" element={<AdminRoute><Maintenance /></AdminRoute>} />
+        <Route path="/vehicle-configs" element={<AdminRoute><VehicleConfigs /></AdminRoute>} />
+        <Route path="/pneus" element={<AdminRoute><Pneus /></AdminRoute>} />
+        <Route path="/movimentacoes-pneus" element={<AdminRoute><MovimentacoesPneus /></AdminRoute>} />
 
         {/* Rotas acessíveis por qualquer usuário autenticado */}
         <Route path="/daily-report" element={<ProtectedRoute><DailyReport /></ProtectedRoute>} />
