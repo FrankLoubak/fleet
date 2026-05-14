@@ -136,12 +136,15 @@ const DraggableTire: React.FC<{ pneu: Pneu; disabled?: boolean; compact?: boolea
   const style: React.CSSProperties = {
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0 : 1,
-  };
+    WebkitTouchCallout: 'none',
+    WebkitUserSelect: 'none',
+    WebkitTapHighlightColor: 'transparent',
+  } as React.CSSProperties;
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{ ...style, touchAction: 'none' }}
       {...listeners}
       {...attributes}
       className={`rounded-lg text-xs font-bold cursor-grab select-none ${VIDA_CLASSES[vida]} ${
@@ -348,17 +351,17 @@ export default function Pneus() {
   const [sucataMotivo, setSucataMotivo] = useState('');
   const [sucataSulco, setSucataSulco] = useState('');
 
-  // DnD sensors — configured for both mobile and desktop
+  // DnD sensors — TouchSensor only (PointerSensor can interfere on mobile)
+  // For mobile, use minimal constraints to allow immediate drag detection
   const sensors = useSensors(
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 100, // small delay helps detect touch movement on mobile
-        tolerance: 8,
+        distance: 3, // tiny distance to start drag immediately on mobile
       },
     }),
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 10, // higher distance for mouse to avoid accidental drags
       },
     })
   );
