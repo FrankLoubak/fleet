@@ -1,6 +1,14 @@
+/**
+ * ARQUIVO: src/components/Sidebar.tsx
+ * O QUE FAZ: menu de navegação lateral, filtrado por role (adminOnly/rootOnly).
+ * PARA QUE SERVE: navegação compartilhada entre as páginas administrativas.
+ * MÓDULOS RELACIONADOS:
+ *   - src/pages/Geofences.tsx — item "Cercas" (Rodada C / C2) adicionado aqui
+ * ÚLTIMA ATUALIZAÇÃO: 2026-09-16 — Rodada C / C2: adicionado item de navegação Cercas
+ */
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Truck, Car, BarChart3, User, LogOut, Mail, Phone, Shield, ChevronDown, Play, Clock, Wrench, X, AlertCircle, Users, Settings2, CircleDot, ArrowRightLeft } from 'lucide-react';
+import { Truck, Car, BarChart3, User, LogOut, Mail, Phone, Shield, ChevronDown, Play, Clock, Wrench, X, AlertCircle, Users, Settings2, CircleDot, ArrowRightLeft, MapPin } from 'lucide-react';
 import { cn } from '../utils';
 import { User as UserType } from '../types';
 import { supabase } from '../lib/supabase';
@@ -14,6 +22,7 @@ const navItems = [
   { icon: BarChart3, label: 'Relatórios', path: '/dashboard', adminOnly: true },
   { icon: Settings2, label: 'Config. Veículos', path: '/vehicle-configs', adminOnly: true },
   { icon: CircleDot,  label: 'Pneus',            path: '/pneus',           adminOnly: true },
+  { icon: MapPin, label: 'Cercas', path: '/geofences', adminOnly: true },
   { icon: Users, label: 'Usuários', path: '/users', rootOnly: true },
   { icon: User, label: 'Perfil', path: '/profile' },
 ];

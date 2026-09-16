@@ -1,3 +1,13 @@
+/**
+ * ARQUIVO: src/lib/telemetry/MockTelemetryProvider.ts
+ * O QUE FAZ: gera posições sintéticas determinísticas (sem hardware/credencial real).
+ * PARA QUE SERVE: implementação concreta de TelemetryProvider enquanto não há
+ *   integração real com fornecedor de rastreamento.
+ * MÓDULOS RELACIONADOS:
+ *   - src/lib/telemetry/TelemetryProvider.ts — interface implementada aqui
+ *   - src/lib/alerts/*.ts (Rodada C / C2) — consomem speedKmh/ignitionOn gerados aqui
+ * ÚLTIMA ATUALIZAÇÃO: 2026-09-16 — Rodada C / C2: gera ignitionOn também
+ */
 import type { TelemetryProvider, VehiclePosition } from './TelemetryProvider';
 
 // Coordenada base usada só pelo mock (região metropolitana de São Paulo).
@@ -26,6 +36,7 @@ function positionAt(vehicleId: string, at: Date): VehiclePosition {
     latitude: BASE_LAT + jitterLat,
     longitude: BASE_LNG + jitterLng,
     speedKmh: Math.round(pseudoRandom(seed + 2) * 80),
+    ignitionOn: pseudoRandom(seed + 3) > 0.1,
     recordedAt: at.toISOString(),
   };
 }

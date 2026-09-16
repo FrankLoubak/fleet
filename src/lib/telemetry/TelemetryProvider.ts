@@ -1,8 +1,20 @@
+/**
+ * ARQUIVO: src/lib/telemetry/TelemetryProvider.ts
+ * O QUE FAZ: contrato de telemetria veicular (posição, velocidade, ignição).
+ * PARA QUE SERVE: desacopla o resto do app de qualquer fornecedor real de rastreamento.
+ * MÓDULOS RELACIONADOS:
+ *   - src/lib/telemetry/MockTelemetryProvider.ts — única implementação concreta hoje
+ *   - src/lib/alerts/SpeedingRule.ts, IgnitionEventRule.ts — consomem VehiclePosition
+ * ÚLTIMA ATUALIZAÇÃO: 2026-09-16 — Rodada C / C2: adicionado ignitionOn
+ */
 export interface VehiclePosition {
   vehicleId: string;
   latitude: number;
   longitude: number;
   speedKmh: number | null;
+  // Rodada C / C2: usado por IgnitionEventRule. null quando o provedor não reporta
+  // estado de ignição (nem todo rastreador manda isso em toda posição).
+  ignitionOn: boolean | null;
   recordedAt: string;
 }
 

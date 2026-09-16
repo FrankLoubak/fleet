@@ -7,7 +7,8 @@
  *   - src/pages/Profile.tsx — rota /profile nunca existia (bug pré-existente descoberto
  *     ao testar a Rodada C / C1: Sidebar.tsx já linkava para lá e o card de PIN
  *     adicionado em Profile.tsx ficava inacessível); corrigido aqui
- * ÚLTIMA ATUALIZAÇÃO: 2026-09-16 — Rodada C / C1: adicionada rota /profile ausente
+ *   - src/pages/Geofences.tsx — rota /geofences (Rodada C / C2), AdminRoute
+ * ÚLTIMA ATUALIZAÇÃO: 2026-09-16 — Rodada C / C2: adicionada rota /geofences
  */
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
@@ -24,6 +25,7 @@ import MaintenanceList from './pages/MaintenanceList';
 import TimeBank from './pages/TimeBank';
 import Users from './pages/Users';
 import VehicleConfigs from './pages/VehicleConfigs';
+import Geofences from './pages/Geofences';
 import Pneus from './pages/Pneus';
 import MovimentacoesPneus from './pages/MovimentacoesPneus';
 import Profile from './pages/Profile';
@@ -119,6 +121,7 @@ export default function App() {
         <Route path="/refueling" element={<AdminRoute><Refueling /></AdminRoute>} />
         <Route path="/maintenance" element={<AdminRoute><Maintenance /></AdminRoute>} />
         <Route path="/vehicle-configs" element={<AdminRoute><VehicleConfigs /></AdminRoute>} />
+        <Route path="/geofences" element={<AdminRoute><Geofences /></AdminRoute>} />
         <Route path="/pneus" element={<AdminRoute><Pneus /></AdminRoute>} />
         <Route path="/movimentacoes-pneus" element={<AdminRoute><MovimentacoesPneus /></AdminRoute>} />
 

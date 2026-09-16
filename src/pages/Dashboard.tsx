@@ -1,7 +1,16 @@
+/**
+ * ARQUIVO: src/pages/Dashboard.tsx
+ * O QUE FAZ: painel administrativo com gráficos de consumo/manutenção e notificações.
+ * PARA QUE SERVE: visão geral da frota para Admin/Root.
+ * MÓDULOS RELACIONADOS:
+ *   - supabase/migrations/20260916000005_alert_engine.sql (alert_events) — card
+ *     "Alertas Ativos" (Rodada C / C2) lê daqui
+ * ÚLTIMA ATUALIZAÇÃO: 2026-09-16 — Rodada C / C2: adicionado card de alertas ativos
+ */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, Legend, AreaChart, Area 
 } from 'recharts';
 import { 
@@ -13,6 +22,13 @@ import Autocomplete from '../components/Autocomplete';
 import { cn } from '../utils';
 import { User as UserType, Journey, RefuelingRecord, MaintenanceRecord, Vehicle } from '../types';
 import { supabase } from '../lib/supabase';
+
+// PostgREST embute a FK vehicles(plate) ora como objeto, ora como array de 1 item,
+// dependendo de como o schema cache resolve a relação — normaliza pra string única.
+function extractVehiclePlate(embedded: unknown): string {
+  const row = Array.isArray(embedded) ? embedded[0] : embedded;
+  return (row as { plate?: string } | null)?.plate ?? '—';
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -34,6 +50,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [chartType, setChartType] = useState<'fuel' | 'maintenance'>('fuel');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [activeAlerts, setActiveAlerts] = useState<{ id: string; message: string; ruleType: string; vehiclePlate: string; triggeredAt: string }[]>([]);
 
   const [stats, setStats] = useState({
     fuelTotal: 0,
@@ -392,6 +409,29 @@ export default function Dashboard() {
           setSelectedComparisonVehicleId(secondId);
         }
       }
+
+      // Rodada C / C2: alertas ativos (últimos disparados pelo motor de alertas)
+      try {
+        const { data: alertData, error: alertError } = await supabase
+          .from('alert_events')
+          .select('id, message, rule_type, triggered_at, vehicles(plate)')
+          .order('triggered_at', { ascending: false })
+          .limit(10);
+
+        if (!alertError && alertData) {
+          setActiveAlerts(
+            alertData.map((a) => ({
+              id: a.id as string,
+              message: a.message as string,
+              ruleType: a.rule_type as string,
+              triggeredAt: a.triggered_at as string,
+              vehiclePlate: extractVehiclePlate(a.vehicles),
+            }))
+          );
+        }
+      } catch {
+        // Falha ao carregar alertas não deve impedir o resto do dashboard de renderizar.
+      }
     };
     initDashboard();
   }, [navigate]);
@@ -474,6 +514,30 @@ export default function Dashboard() {
                 <span>Validar Agora</span>
                 <ChevronRight size={18} />
               </button>
+            </div>
+          )}
+
+          {/* Alertas Ativos (Rodada C / C2) */}
+          {activeAlerts.length > 0 && (
+            <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-2xl p-6 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center shrink-0">
+                  <Bell size={20} />
+                </div>
+                <h3 className="text-lg font-bold text-red-900 dark:text-red-400">Alertas Ativos</h3>
+              </div>
+              <div className="space-y-2">
+                {activeAlerts.map((alert) => (
+                  <div key={alert.id} className="flex items-center justify-between text-sm bg-white/50 dark:bg-black/10 rounded-xl px-4 py-2.5">
+                    <span className="text-red-800 dark:text-red-300">
+                      <strong>{alert.vehiclePlate}</strong> — {alert.message}
+                    </span>
+                    <span className="text-red-500 dark:text-red-400/70 text-xs shrink-0 ml-3">
+                      {new Date(alert.triggeredAt).toLocaleString('pt-BR')}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
