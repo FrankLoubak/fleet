@@ -1,10 +1,28 @@
+/**
+ * ARQUIVO: src/pages/DailyReport.tsx
+ * O QUE FAZ: tela principal do motorista (self-service) — iniciar/encerrar jornada,
+ *   registrar intervalo, deslocamento, abastecimento e manutenção do dia.
+ * PARA QUE SERVE: é a página real que o Operador usa no dia a dia (diferente de
+ *   Journeys.tsx, que é ferramenta administrativa — Operador nunca acessa Journeys.tsx,
+ *   AdminRoute redireciona pra esta página).
+ * MÓDULOS RELACIONADOS:
+ *   - src/lib/drivers/index.ts (driverAuthProvider) — Rodada C / C1: gate de
+ *     identificação por PIN antes de iniciar uma jornada nova (não retroativa) — ver
+ *     handleStartJourneyClick/handleConfirmPinAndStart/handleStartJourney
+ *   - supabase/migrations/20260916000002_driver_identification.sql — schema consumido
+ *     indiretamente via driverAuthProvider
+ * ÚLTIMA ATUALIZAÇÃO: 2026-09-16 — Rodada C / C1: adicionado gate de identificação por
+ *   PIN ao iniciar jornada (substituindo a tentativa inicial, incorreta, em
+ *   Journeys.tsx — Operador não acessa aquela página)
+ */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Clock, Zap, Fuel, Wrench, Play, ClipboardList, Truck, Power, User, LogOut, CheckCircle2, X, BarChart3, History, Loader2, AlertCircle, ChevronRight, Navigation } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Zap, Fuel, Wrench, Play, ClipboardList, Truck, Power, User, LogOut, CheckCircle2, X, BarChart3, History, Loader2, AlertCircle, ChevronRight, Navigation, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '../utils';
 import { User as UserType, Journey, Vehicle } from '../types';
 import { supabase } from '../lib/supabase';
+import { driverAuthProvider } from '../lib/drivers';
 
 export default function DailyReport() {
   const navigate = useNavigate();
@@ -29,6 +47,10 @@ export default function DailyReport() {
   const [isValidationAlertModalOpen, setIsValidationAlertModalOpen] = useState(false);
   const [isRetroactiveWarningModalOpen, setIsRetroactiveWarningModalOpen] = useState(false);
   const [isGeneralErrorModalOpen, setIsGeneralErrorModalOpen] = useState(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [pinLoading, setPinLoading] = useState(false);
   const [timeBankTotal, setTimeBankTotal] = useState('00:00');
   const [errorMessages, setErrorMessages] = useState<string[]>([]);
   const [lastOdometerValue, setLastOdometerValue] = useState(0);
@@ -194,7 +216,10 @@ export default function DailyReport() {
     navigate('/login');
   };
 
-  const handleStartJourney = async () => {
+  // verifiedPin vem do gate de identificação (C1) já confirmado em
+  // handleConfirmPinAndStart — undefined quando a jornada é retroativa (sem gate, ver
+  // handleStartJourneyClick).
+  const handleStartJourney = async (verifiedPin?: string) => {
     if (!selectedVehicle || !startOdometer || !startTime || !startDate) {
       alert('Por favor, preencha todos os campos para iniciar a jornada.');
       return;
@@ -382,6 +407,16 @@ export default function DailyReport() {
           observations: j.observations
         };
         setCurrentJourney(newJourney);
+
+        if (verifiedPin) {
+          const recorded = await driverAuthProvider.recordCheckin(j.id, verifiedPin);
+          if (!recorded) {
+            toast('⚠️ Jornada iniciada, mas não foi possível registrar o check-in de identificação.', {
+              duration: 6000,
+              style: { background: '#fef3c7', color: '#92400e', fontWeight: '600' },
+            });
+          }
+        }
       }
       if (isRetroactive) {
         setIsRetroactiveWarningModalOpen(true);
@@ -392,6 +427,49 @@ export default function DailyReport() {
       setIsGeneralErrorModalOpen(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Gate de identificação (C1): clique em "Iniciar Jornada" primeiro valida os campos
+  // (mesma checagem que já existia no topo de handleStartJourney) e decide se pede PIN.
+  // Jornada retroativa não pede PIN — não faz sentido identificação física de um evento
+  // que já aconteceu no passado (decisão do usuário, mesmo critério usado nesta rodada).
+  const handleStartJourneyClick = () => {
+    if (!selectedVehicle || !startOdometer || !startTime || !startDate) {
+      alert('Por favor, preencha todos os campos para iniciar a jornada.');
+      return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const isRetroactive = startDate < today;
+    if (isRetroactive) {
+      handleStartJourney();
+      return;
+    }
+
+    setPinInput('');
+    setPinError('');
+    setIsPinModalOpen(true);
+  };
+
+  const handleConfirmPinAndStart = async () => {
+    setPinError('');
+    if (!/^[0-9]{4,6}$/.test(pinInput)) {
+      setPinError('Digite seu PIN de identificação (4-6 dígitos).');
+      return;
+    }
+
+    setPinLoading(true);
+    try {
+      const authResult = await driverAuthProvider.authenticate(selectedVehicle, pinInput);
+      if (!authResult.success) {
+        setPinError(authResult.error || 'Identificação falhou. Verifique seu PIN em Perfil.');
+        return;
+      }
+      setIsPinModalOpen(false);
+      await handleStartJourney(pinInput);
+    } finally {
+      setPinLoading(false);
     }
   };
 
@@ -826,7 +904,14 @@ export default function DailyReport() {
           >
             <ArrowLeft size={24} />
           </button>
-          <h1 className="flex-1 text-center text-lg font-bold leading-tight tracking-tight pr-10">Parte Diária</h1>
+          <h1 className="flex-1 text-center text-lg font-bold leading-tight tracking-tight">Parte Diária</h1>
+          <button
+            onClick={() => navigate('/profile')}
+            className="flex size-10 items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+            title="Meu Perfil"
+          >
+            <User size={22} />
+          </button>
         </header>
 
         <main className="flex-1 px-4 py-6 space-y-6 pb-24">
@@ -1087,7 +1172,7 @@ export default function DailyReport() {
         <footer className="sticky bottom-20 z-10 bg-background-light dark:bg-background-dark border-t border-slate-200 dark:border-slate-800 p-4">
           <button 
             disabled={loading || (!isJourneyOpen && (!startOdometer || !selectedVehicle))}
-            onClick={isJourneyOpen ? () => setIsIntervalModalOpen(true) : handleStartJourney}
+            onClick={isJourneyOpen ? () => setIsIntervalModalOpen(true) : handleStartJourneyClick}
             className={cn(
               "flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-white shadow-lg transition-all active:scale-[0.98] disabled:opacity-50",
               isJourneyOpen 
@@ -1703,6 +1788,63 @@ export default function DailyReport() {
                     className="w-full h-14 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold shadow-lg hover:opacity-90 transition-all flex items-center justify-center gap-2"
                   >
                     Entendido
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PIN Identification Modal (Rodada C / C1) */}
+        {isPinModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-6 space-y-6">
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-full">
+                    <ShieldCheck className="text-blue-600 w-10 h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Identificação do Motorista</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Digite seu PIN de identificação para iniciar a jornada.
+                    </p>
+                  </div>
+                </div>
+
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={6}
+                  autoFocus
+                  className="input-field text-center text-2xl tracking-widest"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+                />
+
+                {pinError && (
+                  <div className="p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-xl">
+                    <p className="text-sm font-medium text-red-700 dark:text-red-400 text-center flex items-center justify-center gap-1.5">
+                      <AlertCircle size={14} />
+                      {pinError}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => setIsPinModalOpen(false)}
+                    className="flex-1 h-12 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleConfirmPinAndStart}
+                    disabled={pinLoading}
+                    className="flex-1 h-12 rounded-xl bg-primary text-white text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {pinLoading ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}
+                    Confirmar
                   </button>
                 </div>
               </div>

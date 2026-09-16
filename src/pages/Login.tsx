@@ -1,3 +1,17 @@
+/**
+ * ARQUIVO: src/pages/Login.tsx
+ * O QUE FAZ: tela de login (CPF+senha) e cadastro via convite (CPF+senha+PIN implícito
+ *   não incluído aqui — ver Profile.tsx).
+ * PARA QUE SERVE: autenticação de todos os papéis (Root/Admin/Operador).
+ * MÓDULOS RELACIONADOS:
+ *   - src/App.tsx (readStoredUser) — exige profiles.cpf como string
+ *   - supabase/migrations/20260916000003_profiles_cpf_column.sql — coluna profiles.cpf
+ *     nunca existiu no schema (bug pré-existente descoberto ao testar a Rodada C / C1 —
+ *     travava o login de qualquer usuário real, já que readStoredUser() sempre falhava);
+ *     corrigido lá, no trigger handle_new_user(), não neste arquivo
+ * ÚLTIMA ATUALIZAÇÃO: 2026-09-16 — Rodada C / C1: nenhuma mudança de lógica aqui além do
+ *   cabeçalho — o bug real (coluna cpf ausente) foi corrigido na migration
+ */
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Truck, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, User, Shield } from 'lucide-react';
@@ -105,7 +119,9 @@ export default function Login() {
           .update({ used: true, used_by: signUpData.user.id })
           .eq('id', inviteId);
 
-        // Atualizar profile com invited_by (o trigger do Supabase pode já criar o profile)
+        // Atualizar profile com invited_by (o trigger do Supabase pode já criar o profile;
+        // cpf agora é persistido pelo próprio trigger — ver migration
+        // 20260916000003_profiles_cpf_column.sql)
         if (invitedBy) {
           await supabase
             .from('profiles')

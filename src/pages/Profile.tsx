@@ -1,15 +1,58 @@
+/**
+ * ARQUIVO: src/pages/Profile.tsx
+ * O QUE FAZ: tela de perfil do usuário logado (dados pessoais, segurança).
+ * PARA QUE SERVE: autosserviço do usuário sobre os próprios dados.
+ * MÓDULOS RELACIONADOS:
+ *   - src/lib/drivers/index.ts (driverAuthProvider) — Rodada C / C1: cadastro/troca do
+ *     PIN de identificação usado ao abrir jornadas (ver handleSavePin)
+ * ÚLTIMA ATUALIZAÇÃO: 2026-09-16 — Rodada C / C1: adicionado card de cadastro de PIN
+ */
 import React, { useEffect, useState } from 'react';
-import { User as UserIcon, Mail, Phone, Shield, Camera, Save, Loader2, ArrowLeft } from 'lucide-react';
+import { User as UserIcon, Mail, Phone, Shield, Camera, Save, Loader2, ArrowLeft, KeyRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { User } from '../types';
-import { supabase } from '../lib/supabase';
+import { driverAuthProvider } from '../lib/drivers';
 
 export default function Profile() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [pin, setPin] = useState('');
+  const [pinConfirm, setPinConfirm] = useState('');
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const [pinSuccess, setPinSuccess] = useState(false);
   const navigate = useNavigate();
+
+  const handleSavePin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPinError('');
+    setPinSuccess(false);
+
+    if (!/^[0-9]{4,6}$/.test(pin)) {
+      setPinError('O PIN deve ter entre 4 e 6 dígitos numéricos.');
+      return;
+    }
+    if (pin !== pinConfirm) {
+      setPinError('Os PINs digitados não coincidem.');
+      return;
+    }
+
+    setPinLoading(true);
+    try {
+      const result = await driverAuthProvider.setPin(pin);
+      if (!result.success) {
+        setPinError(result.error || 'Não foi possível salvar o PIN.');
+        return;
+      }
+      setPinSuccess(true);
+      setPin('');
+      setPinConfirm('');
+    } finally {
+      setPinLoading(false);
+    }
+  };
 
   useEffect(() => {
     const userJson = localStorage.getItem('fleet_user');
@@ -92,6 +135,54 @@ export default function Profile() {
                     <button type="button" className="btn-primary flex items-center justify-center gap-2 px-8" disabled={loading}>
                       {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
                       <span>Salvar Alterações</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <div className="card p-8">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                  <KeyRound size={20} className="text-blue-600" />
+                  PIN de Identificação
+                </h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                  Usado para se identificar antes de abrir uma jornada. Só você conhece este PIN.
+                </p>
+                <form onSubmit={handleSavePin} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Novo PIN (4-6 dígitos)</label>
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={6}
+                        className="input-field"
+                        value={pin}
+                        onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Confirmar PIN</label>
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={6}
+                        className="input-field"
+                        value={pinConfirm}
+                        onChange={(e) => setPinConfirm(e.target.value.replace(/\D/g, ''))}
+                      />
+                    </div>
+                  </div>
+                  {pinError && (
+                    <p className="text-sm text-red-600 dark:text-red-400">{pinError}</p>
+                  )}
+                  {pinSuccess && (
+                    <p className="text-sm text-emerald-600 dark:text-emerald-400">PIN salvo com sucesso.</p>
+                  )}
+                  <div className="pt-2">
+                    <button type="submit" className="btn-primary flex items-center justify-center gap-2 px-8" disabled={pinLoading}>
+                      {pinLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                      <span>Salvar PIN</span>
                     </button>
                   </div>
                 </form>

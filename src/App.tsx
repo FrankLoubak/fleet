@@ -1,3 +1,14 @@
+/**
+ * ARQUIVO: src/App.tsx
+ * O QUE FAZ: roteamento raiz da aplicação (rotas Admin/Root, rotas de qualquer usuário
+ *   autenticado, verificação de sessão via localStorage + Supabase Auth).
+ * PARA QUE SERVE: ponto único de definição de quais páginas existem e quem pode acessar.
+ * MÓDULOS RELACIONADOS:
+ *   - src/pages/Profile.tsx — rota /profile nunca existia (bug pré-existente descoberto
+ *     ao testar a Rodada C / C1: Sidebar.tsx já linkava para lá e o card de PIN
+ *     adicionado em Profile.tsx ficava inacessível); corrigido aqui
+ * ÚLTIMA ATUALIZAÇÃO: 2026-09-16 — Rodada C / C1: adicionada rota /profile ausente
+ */
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -15,6 +26,7 @@ import Users from './pages/Users';
 import VehicleConfigs from './pages/VehicleConfigs';
 import Pneus from './pages/Pneus';
 import MovimentacoesPneus from './pages/MovimentacoesPneus';
+import Profile from './pages/Profile';
 import { supabase } from './lib/supabase';
 import { AuthUser } from './types';
 
@@ -114,6 +126,9 @@ export default function App() {
         <Route path="/daily-report" element={<ProtectedRoute><DailyReport /></ProtectedRoute>} />
         <Route path="/request-maintenance" element={<ProtectedRoute><RequestMaintenance /></ProtectedRoute>} />
         <Route path="/time-bank" element={<ProtectedRoute><TimeBank /></ProtectedRoute>} />
+        {/* /profile nunca tinha rota registrada — link em Sidebar.tsx (Ver Perfil
+            Completo) e o card de PIN (Rodada C / C1) ficavam inacessíveis */}
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
