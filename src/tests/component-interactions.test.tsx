@@ -18,6 +18,10 @@ const createFullChain = (data: unknown[] = [], single: unknown = null) => {
   const resolvedSingle = { data: single, error: null };
 
   // Cria um objeto que suporta qualquer combinação de .eq().eq().gte().lte().order().limit()
+  // Cada método de chain retorna o PRÓPRIO objeto `c` (mesma forma, sempre resolvido) em vez
+  // de construir uma árvore nova a cada chamada — a versão anterior chamava makeChain()
+  // recursivamente sem caso-base, gerando "Maximum call stack size exceeded" na primeira
+  // invocação.
   const makeChain = (): Record<string, unknown> => {
     const c: Record<string, unknown> = {
       ...resolved,
@@ -25,16 +29,15 @@ const createFullChain = (data: unknown[] = [], single: unknown = null) => {
       error: null,
     };
 
-    ['eq', 'neq', 'gte', 'lte', 'gt', 'lt', 'like', 'ilike', 'is', 'in', 'not', 'or', 'filter'].forEach(m => {
-      c[m] = vi.fn().mockReturnValue(makeChain());
+    ['eq', 'neq', 'gte', 'lte', 'gt', 'lt', 'like', 'ilike', 'is', 'in', 'not', 'or', 'filter', 'order', 'limit'].forEach(m => {
+      c[m] = vi.fn().mockReturnValue(c);
     });
 
-    c.order = vi.fn().mockReturnValue({ ...makeChain(), then: undefined });
-    c.limit = vi.fn().mockReturnValue({ ...makeChain(), then: undefined });
     c.single = vi.fn().mockResolvedValue(resolvedSingle);
 
-    // Make it thenable (Promise-like) for await
-    c.then = undefined;
+    // O PostgrestBuilder real do Supabase é thenable (executa a query só quando
+    // aguardado/encadeado com .then) — código como `.order('nome').then(cb)` depende disso.
+    c.then = (onFulfilled: (v: typeof resolved) => unknown) => Promise.resolve(resolved).then(onFulfilled);
 
     return c;
   };
@@ -121,6 +124,11 @@ const OPERADOR_USER = {
   email: 'op@fleet.com', avatar: null
 };
 
+const ROOT_USER = {
+  id: 'u3', cpf: '33333333333', name: 'Root User', role: 'Root',
+  email: 'root@fleet.com', avatar: null
+};
+
 function setStoredUser(user: object) {
   localStorage.setItem('fleet_user', JSON.stringify(user));
 }
@@ -181,7 +189,8 @@ describe('Login — interações avançadas', () => {
 // Suite: Users — lista de usuários
 // ---------------------------------------------------------------------------
 describe('Users — lista de usuários', () => {
-  beforeEach(() => setStoredUser(ADMIN_USER));
+  // Users.tsx restringe acesso a role === 'Root' (mesma regra do Sidebar, rootOnly).
+  beforeEach(() => setStoredUser(ROOT_USER));
   afterEach(() => {
     clearStorage();
     vi.clearAllMocks();
@@ -214,7 +223,10 @@ describe('Users — lista de usuários', () => {
     wrap(React.createElement(Users), '/users');
 
     await waitFor(() => {
-      expect(document.body.innerHTML).toContain('Usuários Cadastrados');
+      // Página não tem um cabeçalho "Usuários Cadastrados" — verifica o card do usuário
+      // vindo do mock (nome + e-mail), confirmando que a lista foi carregada de verdade.
+      expect(document.body.innerHTML).toContain('Admin User');
+      expect(document.body.innerHTML).toContain('admin@fleet.com');
     }, { timeout: 3000 });
   });
 });

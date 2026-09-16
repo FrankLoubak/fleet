@@ -4,6 +4,9 @@ import { Users as UsersIcon, UserPlus, Search, Shield, Mail, Phone, MoreVertical
 import Sidebar from '../components/Sidebar';
 import Autocomplete from '../components/Autocomplete';
 import { User } from '../types';
+
+/** Perfil enriquecido com o nome de quem convidou (resolvido a partir de `invited_by`). */
+type Profile = User & { inviter_name?: string };
 import { supabase } from '../lib/supabase';
 import { cn } from '../utils';
 import { toast } from 'react-hot-toast';
@@ -11,7 +14,7 @@ import { toast } from 'react-hot-toast';
 export default function Users() {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -71,7 +74,7 @@ export default function Users() {
         inviter_name: p.invited_by ? inviterMap[p.invited_by] || p.invited_by : undefined,
       }));
 
-      setProfiles(enriched);
+      setUsers(enriched);
     } catch (err: unknown) {
     } finally {
       setLoading(false);
@@ -104,10 +107,12 @@ export default function Users() {
       if (error) throw error;
 
       const link = `${window.location.origin}/login?token=${token}`;
-      setModal(prev => ({ ...prev, loading: false, generatedLink: link }));
+      setInviteLink(link);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao gerar convite.';
-      setModal(prev => ({ ...prev, loading: false, error: message }));
+      setError(message);
+    } finally {
+      setGeneratingInvite(false);
     }
   };
 

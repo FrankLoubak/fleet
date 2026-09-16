@@ -46,6 +46,10 @@ vi.mock('../lib/supabase', () => {
     single: mockSingle,
     data: [],
     error: null,
+    // O PostgrestBuilder real do Supabase é thenable (executa a query só quando
+    // aguardado/encadeado com .then) — código como `.order('nome').then(cb)` depende disso.
+    then: (onFulfilled: (v: { data: unknown[]; error: null }) => unknown) =>
+      Promise.resolve({ data: [], error: null }).then(onFulfilled),
   });
 
   mockSelect.mockReturnValue({

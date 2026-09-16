@@ -44,7 +44,12 @@ vi.mock('../lib/supabase', () => {
   function makeProxy(data: unknown[]): Record<string, unknown> {
     const handler: ProxyHandler<Record<string, unknown>> = {
       get(_target, prop) {
-        if (prop === 'then') return undefined;
+        // O PostgrestBuilder real do Supabase é thenable (executa a query só quando
+        // aguardado/encadeado com .then) — código como `.order('nome').then(cb)` depende disso.
+        if (prop === 'then') {
+          return (onFulfilled: (v: { data: unknown[]; error: null }) => unknown) =>
+            Promise.resolve({ data, error: null }).then(onFulfilled);
+        }
         if (prop === 'data') return data;
         if (prop === 'error') return null;
         if (prop === 'single') {

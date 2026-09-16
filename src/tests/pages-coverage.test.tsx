@@ -88,8 +88,15 @@ vi.mock('../lib/supabase', () => {
   // Cria um proxy infinito que retorna sempre dados e suporta qualquer método de chain
   function createInfiniteChain(data: unknown[], single: unknown = null): Record<string, unknown> {
     const chain: Record<string, unknown> = {};
-    const resolved = { data, error: null };
+    const resolved: Record<string, unknown> = { data, error: null };
     const resolvedSingle = { data: single, error: null };
+    // O PostgrestBuilder real do Supabase é thenable (executa a query só quando
+    // aguardado/encadeado com .then) — código como `.order('nome').then(cb)` depende disso.
+    // Como `resolved` é espalhado (`...resolved`) em todos os sub-chains abaixo, esta função
+    // "pega carona" e propaga o comportamento thenable para qualquer ponto de encadeamento,
+    // sem precisar repetir a mesma lógica em cada `vi.fn().mockReturnValue({...resolved, ...})`.
+    resolved.then = (onFulfilled: (v: { data: unknown[]; error: null }) => unknown) =>
+      Promise.resolve({ data, error: null }).then(onFulfilled);
 
     // Métodos que terminam a chain (retornam Promise)
     chain.then = undefined; // não é uma Promise diretamente
@@ -221,6 +228,11 @@ const ADMIN_USER = {
 const OPERADOR_USER = {
   id: 'u2', cpf: '22222222222', name: 'Operador Test', role: 'Operador',
   email: 'op@fleet.com', avatar: null, phone: null
+};
+
+const ROOT_USER = {
+  id: 'u3', cpf: '33333333333', name: 'Root Test', role: 'Root',
+  email: 'root@fleet.com', avatar: null, phone: null
 };
 
 function setStoredUser(user: object) {
@@ -398,7 +410,8 @@ describe('Maintenance — com dados ricos', () => {
 // ---------------------------------------------------------------------------
 describe('Users — com dados ricos', () => {
   beforeEach(() => {
-    setStoredUser(ADMIN_USER);
+    // Users.tsx restringe acesso a role === 'Root' (mesma regra do Sidebar, rootOnly).
+    setStoredUser(ROOT_USER);
   });
   afterEach(() => {
     clearStorage();

@@ -14,20 +14,23 @@ import { MemoryRouter } from 'react-router-dom';
 // Mock do Supabase
 // ---------------------------------------------------------------------------
 vi.mock('../lib/supabase', () => {
-  // Cria um chain infinito que suporta qualquer método
+  // Cria um chain que suporta qualquer método, sempre retornando o mesmo objeto resolvido —
+  // a versão anterior chamava makeChain() recursivamente sem caso-base a cada método,
+  // causando "Maximum call stack size exceeded" na primeira invocação.
   const makeChain = (data: unknown[] = [], single: unknown = null): Record<string, unknown> => {
     const methods = ['eq', 'neq', 'gte', 'lte', 'gt', 'lt', 'like', 'ilike', 'is', 'in',
-      'not', 'or', 'and', 'filter', 'contains', 'containedBy'];
+      'not', 'or', 'and', 'filter', 'contains', 'containedBy', 'order', 'limit'];
 
     const resolved = { data, error: null };
 
     const c: Record<string, unknown> = { ...resolved };
     methods.forEach(m => {
-      c[m] = vi.fn().mockReturnValue(makeChain(data, single));
+      c[m] = vi.fn().mockReturnValue(c);
     });
-    c.order = vi.fn().mockReturnValue({ ...makeChain(data, single), then: undefined });
-    c.limit = vi.fn().mockReturnValue({ ...makeChain(data, single), then: undefined });
     c.single = vi.fn().mockResolvedValue({ data: single, error: null });
+    // O PostgrestBuilder real do Supabase é thenable (executa a query só quando
+    // aguardado/encadeado com .then) — código como `.order('nome').then(cb)` depende disso.
+    c.then = (onFulfilled: (v: typeof resolved) => unknown) => Promise.resolve(resolved).then(onFulfilled);
     return c;
   };
 
