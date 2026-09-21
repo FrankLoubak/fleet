@@ -11,7 +11,8 @@
  * MÓDULOS RELACIONADOS:
  *   - src/lib/telemetry/index.ts (telemetryProvider) — fonte dos dados
  *   - src/pages/RouteHistory.tsx — consumidor
- * ÚLTIMA ATUALIZAÇÃO: 2026-09-16 — criação inicial (Rodada C / C3)
+ * ÚLTIMA ATUALIZAÇÃO: 2026-09-22 — Rodada C / C4: getAllForExport() (relatório precisa do
+ *   período inteiro, não só da página atual exibida na tela)
  */
 
 import { telemetryProvider } from '../telemetry';
@@ -37,6 +38,12 @@ export class RouteHistoryService {
     const start = (page - 1) * pageSize;
     const items = all.slice(start, start + pageSize);
     return { items, page, pageSize, totalCount };
+  }
+
+  // Rodada C / C4: relatório de histórico de rotas exporta o período inteiro
+  // selecionado na tela, não só a página de 20 itens exibida na tabela.
+  async getAllForExport(vehicleId: string, from: Date, to: Date): Promise<VehiclePosition[]> {
+    return telemetryProvider.getPositionHistory(vehicleId, from, to);
   }
 }
 

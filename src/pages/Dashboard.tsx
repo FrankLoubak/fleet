@@ -5,23 +5,33 @@
  * MÓDULOS RELACIONADOS:
  *   - supabase/migrations/20260916000005_alert_engine.sql (alert_events) — card
  *     "Alertas Ativos" (Rodada C / C2) lê daqui
- * ÚLTIMA ATUALIZAÇÃO: 2026-09-16 — Rodada C / C2: adicionado card de alertas ativos
+ *   - src/components/ExportMenu.tsx — Rodada C / C4: exportação de alertas do período
+ * ÚLTIMA ATUALIZAÇÃO: 2026-09-22 — Rodada C / C4: botão de exportação de alertas
  */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar, Legend, AreaChart, Area 
+  PieChart, Pie, Cell, BarChart, Bar, Legend, AreaChart, Area
 } from 'recharts';
-import { 
-  Fuel, Settings, TrendingUp, TrendingDown, Search, Bell, 
+import {
+  Fuel, Settings, TrendingUp, TrendingDown, Search, Bell,
   Download, Filter, ChevronRight, AlertCircle, X, Truck, Check, Loader2, Menu, Clock
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Autocomplete from '../components/Autocomplete';
+import ExportMenu from '../components/ExportMenu';
 import { cn } from '../utils';
 import { User as UserType, Journey, RefuelingRecord, MaintenanceRecord, Vehicle } from '../types';
+import type { ReportData } from '../lib/reports';
 import { supabase } from '../lib/supabase';
+
+// Rótulo amigável para o rule_type de alert_events (CHECK 'speeding'|'ignition'|'geofence').
+const ALERT_RULE_LABEL: Record<string, string> = {
+  speeding: 'Velocidade',
+  ignition: 'Ignição',
+  geofence: 'Cerca eletrônica',
+};
 
 // PostgREST embute a FK vehicles(plate) ora como objeto, ora como array de 1 item,
 // dependendo de como o schema cache resolve a relação — normaliza pra string única.
@@ -446,6 +456,43 @@ export default function Dashboard() {
     loadData();
   };
 
+  // Rodada C / C4: relatório do período/veículo selecionados nos filtros do dashboard —
+  // consulta própria (não reaproveita `activeAlerts`, que é só os 10 mais recentes para
+  // o card, sem filtro de período).
+  const buildAlertsReport = async (): Promise<ReportData> => {
+    let query = supabase
+      .from('alert_events')
+      .select('id, message, rule_type, triggered_at, vehicles(plate)')
+      .gte('triggered_at', `${startDate}T00:00:00`)
+      .lte('triggered_at', `${endDate}T23:59:59`)
+      .order('triggered_at', { ascending: false });
+
+    if (selectedVehicleId !== 'all') {
+      query = query.eq('vehicle_id', selectedVehicleId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return {
+      title: 'Alertas',
+      period: `${new Date(`${startDate}T00:00:00`).toLocaleDateString('pt-BR')} a ${new Date(`${endDate}T00:00:00`).toLocaleDateString('pt-BR')}`,
+      filename: `alertas-${new Date().toISOString().split('T')[0]}`,
+      columns: [
+        { header: 'Data/Hora', key: 'dataHora' },
+        { header: 'Veículo', key: 'veiculo' },
+        { header: 'Tipo', key: 'tipo' },
+        { header: 'Mensagem', key: 'mensagem' },
+      ],
+      rows: (data || []).map((a) => ({
+        dataHora: new Date(a.triggered_at as string).toLocaleString('pt-BR'),
+        veiculo: extractVehiclePlate(a.vehicles),
+        tipo: ALERT_RULE_LABEL[a.rule_type as string] || (a.rule_type as string),
+        mensagem: a.message as string,
+      })),
+    };
+  };
+
   if (!currentUser) return null;
 
   return (
@@ -479,6 +526,7 @@ export default function Dashboard() {
               />
             </div>
             <div className="flex items-center gap-3">
+              <ExportMenu buildReport={buildAlertsReport} />
               <button className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 relative">
                 <Bell size={20} />
                 {stats.maintenanceAlerts.length > 0 && (

@@ -9,6 +9,18 @@ if (typeof globalThis.DOMMatrix === 'undefined') {
   globalThis.DOMMatrix = class DOMMatrix {};
 }
 
+// jsdom não implementa `URL.createObjectURL`/`revokeObjectURL` — usado por
+// ExcelExporter/PdfExporter/TxtExporter (Rodada C / C4) e pelo próprio jsPDF.save()
+// para disparar o download do relatório. Stub mínimo (URL fake, sem revogação real)
+// só para o código não lançar `TypeError: ... is not a function`; testes que
+// precisam inspecionar o Blob gerado sobrescrevem isto com `vi.spyOn`.
+if (typeof URL.createObjectURL === 'undefined') {
+  URL.createObjectURL = () => 'blob:mock';
+}
+if (typeof URL.revokeObjectURL === 'undefined') {
+  URL.revokeObjectURL = () => {};
+}
+
 // jsdom não implementa `window.matchMedia` — react-hot-toast (<Toaster>, montado em todo
 // <App/>) usa isso para detectar prefers-reduced-motion. Stub padrão "sem preferência" (matches:
 // false) é suficiente para os testes; qualquer browser real já implementa isso nativamente.

@@ -146,6 +146,7 @@ WHERE email = 'email@dominio.com';
 | 2026-03-30 | 1.1.0 | Segurança: removidos campos `password` em texto puro dos dados mock e da interface `User` |
 | 2026-03-30 | 1.2.0 | Papéis atualizados: `Motorista` → `Operador`, adicionado `Root`. Cadastro público removido. Sistema de convites implementado. Campo `invited_by` adicionado em `profiles`. Tabela `invites` criada no banco. |
 | 2026-05-01 | 2.0.0 | Rodada de correções Orchestrator (A1–A6). Ver seção 11 para detalhes. |
+| 2026-09-22 | 2.4.0 | Rodada C / C4: exportação de relatórios (Excel/PDF/TXT). Ver seção 12 para detalhes. |
 
 ---
 
@@ -180,3 +181,42 @@ Total tests: 280 (17 arquivos)
 - Remover `console.error` remanescentes em catch blocks de Vehicles.tsx, Dashboard.tsx, Users.tsx, Refueling.tsx, Maintenance.tsx, MaintenanceList.tsx (pré-existentes, fora do escopo desta rodada)
 - Remover `any` remanescentes em seedData.ts, Refueling.tsx, Users.tsx (pré-existentes)
 - Aumentar cobertura de funções (atual: 39.76%) com testes de interação nos componentes grandes
+
+---
+
+## 12. Módulo de Relatórios (Rodada C / C4)
+
+`src/lib/reports/` segue o mesmo padrão de interface desacoplada usado em
+`TelemetryProvider`/`AlertRule`/`DriverAuthProvider` (seção 4.1 do prompt de desenvolvimento):
+
+- `ReportExporter.ts` — interface (`format`, `label`, `export(report: ReportData)`), mais o
+  shape genérico `ReportData` (título, período opcional, colunas, linhas, nome do arquivo).
+- `ExcelExporter.ts`, `PdfExporter.ts`, `TxtExporter.ts` — uma implementação por formato.
+- `index.ts` — expõe `reportExporters: ReportExporter[]`, ponto único de acesso.
+- `src/components/ExportMenu.tsx` — botão com menu suspenso, reutilizado em
+  `Journeys.tsx`, `RouteHistory.tsx` e `Dashboard.tsx`. Recebe uma função `buildReport()`
+  (pode ser assíncrona) que cada página implementa com seus próprios dados/filtros.
+
+**Para adicionar um novo relatório numa página existente:** escrever uma função
+`buildXReport(): ReportData | Promise<ReportData>` na página, montando `columns`/`rows` a
+partir do estado já carregado (ou de uma consulta nova, se o relatório precisar de dados que
+a tela não mantém — ver `RouteHistory.tsx`/`buildRouteHistoryReport`, que busca o período
+inteiro via `RouteHistoryService.getAllForExport()`, não só a página exibida na tabela), e
+passar essa função pro `<ExportMenu buildReport={...} />`.
+
+**Para adicionar um novo formato de exportação:** implementar `ReportExporter` num arquivo
+novo e adicionar a instância em `reportExporters` (`src/lib/reports/index.ts`) — nenhum outro
+arquivo muda, incluindo `ExportMenu.tsx`.
+
+**Decisão de dependências (Excel/PDF):** `exceljs` (não `xlsx`/SheetJS — 2 vulnerabilidades
+HIGH sem correção publicada no npm público, confirmado via `npm audit`) e `jspdf` +
+`jspdf-autotable` (0 vulnerabilidades). Ver o cabeçalho de `ExcelExporter.ts` para o raciocínio
+completo, incluindo por que a vulnerabilidade moderate de `uuid` (dependência transitiva do
+`exceljs`) não é alcançável pelo uso real feito aqui.
+
+**Retenção de dados exportados (lacuna sinalizada, não decidida aqui):** os relatórios de
+jornadas e histórico de rotas exportam dados pessoais (nome do motorista, geolocalização) para
+um arquivo que sai do controle de RLS do banco assim que baixado. O TR de referência da Rodada C
+cita retenção de 5 anos para dados de rastreamento, mas este projeto não define uma política de
+retenção/expurgo formal ainda — mesma lacuna já registrada nas Rodadas B/C anteriores, não
+decidida unilateralmente aqui (CS Agent, PARTE 9, item 4).

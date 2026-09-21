@@ -1,6 +1,14 @@
+/**
+ * ARQUIVO: src/pages/Journeys.tsx
+ * O QUE FAZ: gestão de jornadas (Admin/Root) — cadastro manual, validação para banco de
+ *   horas, filtro por período/busca, e exportação da lista filtrada em relatório.
+ * MÓDULOS RELACIONADOS:
+ *   - src/components/ExportMenu.tsx — Rodada C / C4: botão de exportação
+ * ÚLTIMA ATUALIZAÇÃO: 2026-09-22 — Rodada C / C4: botão de exportação de jornadas
+ */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
   Play, 
   Search, 
   Filter, 
@@ -27,9 +35,11 @@ import {
   AlertCircle
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import ExportMenu from '../components/ExportMenu';
 import toast from 'react-hot-toast';
 import { cn } from '../utils';
 import { User as UserType, Journey, Vehicle, RefuelingRecord, MaintenanceRecord } from '../types';
+import type { ReportData } from '../lib/reports';
 import { supabase } from '../lib/supabase';
 
 // Extensão de RefuelingRecord com consumo médio calculado por período
@@ -745,6 +755,64 @@ export default function Journeys() {
     );
   }).sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
 
+  // Rodada C / C4: mesma jornada exibida na tabela, formatada para relatório.
+  // Duração/excedente recalculados aqui (não reaproveita a IIFE do JSX) porque o
+  // relatório precisa do valor como string simples, não como nó React.
+  const buildJourneysReport = (): ReportData => ({
+    title: 'Jornadas',
+    period: (filterStartDate || filterEndDate)
+      ? `${filterStartDate ? new Date(`${filterStartDate}T00:00:00`).toLocaleDateString('pt-BR') : '—'} a ${filterEndDate ? new Date(`${filterEndDate}T00:00:00`).toLocaleDateString('pt-BR') : '—'}`
+      : undefined,
+    filename: `jornadas-${new Date().toISOString().split('T')[0]}`,
+    columns: [
+      { header: 'Data', key: 'data' },
+      { header: 'Início', key: 'inicio' },
+      { header: 'Fim', key: 'fim' },
+      { header: 'Veículo', key: 'veiculo' },
+      { header: 'Motorista', key: 'motorista' },
+      { header: 'KM Início', key: 'kmInicio' },
+      { header: 'KM Fim', key: 'kmFim' },
+      { header: 'Status', key: 'status' },
+      { header: 'Duração', key: 'duracao' },
+      { header: 'Excedente', key: 'excedente' },
+      { header: 'Validação', key: 'validacao' },
+    ],
+    rows: filteredJourneys.map((journey) => {
+      const vehicle = vehicles.find(v => v.id === journey.vehicleId);
+      const user = users.find(u => u.id === journey.userId);
+      const start = new Date(journey.startTime);
+      const end = journey.endTime ? new Date(journey.endTime) : null;
+      let duracao = '---';
+      let excedente = '';
+      if (end) {
+        const diff = end.getTime() - start.getTime();
+        const h = Math.floor(diff / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        duracao = `${h}h ${m}m`;
+        const eightHoursMs = 8 * 60 * 60 * 1000;
+        if (diff > eightHoursMs) {
+          const excess = diff - eightHoursMs;
+          const eh = Math.floor(excess / (1000 * 60 * 60));
+          const em = Math.floor((excess % (1000 * 60 * 60)) / (1000 * 60));
+          excedente = `+${eh}h ${em}m`;
+        }
+      }
+      return {
+        data: start.toLocaleDateString('pt-BR'),
+        inicio: start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        fim: end ? end.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '---',
+        veiculo: vehicle ? `${vehicle.plate} - ${vehicle.model}` : '---',
+        motorista: user?.name || '---',
+        kmInicio: journey.startOdometer,
+        kmFim: journey.endOdometer ?? '---',
+        status: journey.status,
+        duracao,
+        excedente,
+        validacao: journey.status === 'encerrada' ? (journey.validation_status || 'validada') : '',
+      };
+    }),
+  });
+
   if (!currentUser) return null;
 
   return (
@@ -762,13 +830,16 @@ export default function Journeys() {
             </button>
             <h2 className="text-base md:text-lg font-bold dark:text-white">Gestão de Jornadas</h2>
           </div>
-          <button 
-            onClick={() => handleOpenModal()}
-            className="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-primary/20 flex items-center gap-2"
-          >
-            <Plus size={18} />
-            <span>Nova Jornada</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <ExportMenu buildReport={buildJourneysReport} disabled={filteredJourneys.length === 0} />
+            <button
+              onClick={() => handleOpenModal()}
+              className="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-primary/20 flex items-center gap-2"
+            >
+              <Plus size={18} />
+              <span>Nova Jornada</span>
+            </button>
+          </div>
         </header>
 
         <div className="p-4 md:p-8 space-y-6">

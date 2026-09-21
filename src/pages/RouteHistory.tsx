@@ -5,16 +5,19 @@
  * PARA QUE SERVE: Rodada C / C3 — histórico de rotas (TR Salgueiro/PE, item 5.6.1-d).
  * MÓDULOS RELACIONADOS:
  *   - src/lib/routes/RouteHistoryService.ts — consulta paginada
- * ÚLTIMA ATUALIZAÇÃO: 2026-09-16 — criação inicial (Rodada C / C3)
+ *   - src/components/ExportMenu.tsx — Rodada C / C4: exportação do período selecionado
+ * ÚLTIMA ATUALIZAÇÃO: 2026-09-22 — Rodada C / C4: botão de exportação
  */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { History, Menu, Loader2, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import ExportMenu from '../components/ExportMenu';
 import { Vehicle } from '../types';
 import { supabase } from '../lib/supabase';
 import { routeHistoryService } from '../lib/routes/RouteHistoryService';
 import type { VehiclePosition } from '../lib/telemetry/TelemetryProvider';
+import type { ReportData } from '../lib/reports';
 
 const PAGE_SIZE = 20;
 
@@ -83,6 +86,34 @@ export default function RouteHistory() {
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
+  // Rodada C / C4: busca o período inteiro (não só a página de 20 exibida na tela) —
+  // getAllForExport() reaproveita o mesmo TelemetryProvider, sem paginação.
+  const buildRouteHistoryReport = async (): Promise<ReportData> => {
+    const vehicle = vehicles.find((v) => v.id === selectedVehicleId);
+    const from = new Date(`${startDate}T00:00:00`);
+    const to = new Date(`${endDate}T23:59:59`);
+    const all = await routeHistoryService.getAllForExport(selectedVehicleId, from, to);
+    return {
+      title: 'Histórico de Rotas',
+      period: `${new Date(`${startDate}T00:00:00`).toLocaleDateString('pt-BR')} a ${new Date(`${endDate}T00:00:00`).toLocaleDateString('pt-BR')} — ${vehicle ? `${vehicle.plate} - ${vehicle.model}` : selectedVehicleId}`,
+      filename: `historico-rotas-${vehicle?.plate || selectedVehicleId}-${new Date().toISOString().split('T')[0]}`,
+      columns: [
+        { header: 'Data/Hora', key: 'dataHora' },
+        { header: 'Latitude', key: 'latitude' },
+        { header: 'Longitude', key: 'longitude' },
+        { header: 'Velocidade (km/h)', key: 'velocidade' },
+        { header: 'Ignição', key: 'ignicao' },
+      ],
+      rows: all.map((p) => ({
+        dataHora: new Date(p.recordedAt).toLocaleString('pt-BR'),
+        latitude: p.latitude.toFixed(5),
+        longitude: p.longitude.toFixed(5),
+        velocidade: p.speedKmh ?? '—',
+        ignicao: p.ignitionOn === null ? '—' : p.ignitionOn ? 'Ligada' : 'Desligada',
+      })),
+    };
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
@@ -101,6 +132,7 @@ export default function RouteHistory() {
               Histórico de Rotas
             </h2>
           </div>
+          <ExportMenu buildReport={buildRouteHistoryReport} disabled={!selectedVehicleId || totalCount === 0} />
         </header>
 
         <div className="p-4 md:p-8 space-y-6">
