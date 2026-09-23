@@ -9,7 +9,7 @@
 
 ### profiles
 
-Armazena os perfis de usuário vinculados ao Supabase Auth. Criado automaticamente via trigger `handle_new_user()` após cada novo registro em `auth.users`.
+Armazena os perfis de usuário vinculados ao Supabase Auth. Criado automaticamente via trigger `handle_new_user()` após cada novo registro em `auth.users`. Desde `20260923000000_signup_requires_invite.sql` o cadastro via GoTrue exige `data.invite_token` de um convite válido: `role` e `invited_by` vêm do convite, nunca do cliente, e o convite é marcado como usado na mesma transação. Só quem cria usuário por SQL direto (`postgres`/`supabase_admin`) ainda define o papel via metadata — é assim que se cria um Root.
 
 | Coluna | Tipo | Nullable | Default | Descrição |
 |--------|------|----------|---------|-----------|
@@ -25,7 +25,7 @@ Armazena os perfis de usuário vinculados ao Supabase Auth. Criado automaticamen
 
 #### RLS — profiles
 - **SELECT:** `USING (true)` — todos os perfis são visíveis por qualquer usuário autenticado.
-- **UPDATE:** `USING (auth.uid() = id)` — cada usuário pode atualizar apenas o próprio perfil.
+- **UPDATE:** `USING (auth.uid() = id)` — cada usuário pode atualizar apenas o próprio perfil. O trigger `protect_profile_columns` (BEFORE UPDATE) bloqueia mudança de `role`/`cpf`/`email`/`invited_by` exceto por Root ou pelo backend (`auth.uid()` nulo).
 - **INSERT / DELETE:** Não há policy explícita; ocorre via trigger do Supabase Auth.
 
 #### Funções auxiliares (usadas em RLS de várias tabelas abaixo)
@@ -202,9 +202,10 @@ Registra tokens de convite gerados por Root ou Admin para novos usuários.
 | expires_at | TIMESTAMPTZ | NULL | `NOW() + 7 days` | Data de expiração (7 dias após criação) |
 
 #### RLS — invites
-- **INSERT:** `WITH CHECK (auth.uid() IN (SELECT id FROM profiles WHERE role IN ('Root', 'Admin')))` — apenas Root e Admin criam convites.
-- **SELECT:** `USING (true)` — leitura pública (necessário para validação do token no fluxo de cadastro).
-- **UPDATE:** `USING (true)` — atualização pelo sistema ao marcar convite como utilizado.
+- **INSERT:** `WITH CHECK (is_admin_or_root() AND invited_by = auth.uid())` — apenas Root e Admin criam convites, sempre em nome próprio.
+- **SELECT:** `USING (is_admin_or_root())`. O Login (anônimo) consulta um único convite pelo token via RPC `get_invite(p_token text)` (`SECURITY DEFINER`), que não permite listar.
+- **UPDATE:** nenhuma policy — só o trigger `handle_new_user()` marca o convite como usado.
+- Até 2026-09-23 SELECT e UPDATE eram `USING (true)`: qualquer anônimo listava tokens válidos e reativava convites (corrigido em `20260923000000_signup_requires_invite.sql`).
 
 ---
 
@@ -487,3 +488,4 @@ As regras abaixo governam a criação e encerramento de jornadas. A coluna "Impl
 | `20260916000003_profiles_cpf_column.sql` | 2026-09-16 | Bug fix — coluna `profiles.cpf` (nunca existia), `handle_new_user()` atualizada |
 | `20260916000004_vehicles_missing_columns.sql` | 2026-09-16 | Bug fix — `vehicles.vehicle_type`/`initial_odometer`/`current_odometer`/`initial_hourmeter`/`current_hourmeter` (nunca existiam) |
 | `20260916000005_alert_engine.sql` | 2026-09-16 | Rodada C / C2 — tabelas `alert_rules`, `alert_events`, `geofences`; coluna `vehicle_positions.ignition_on` |
+| `20260923000000_signup_requires_invite.sql` | 2026-09-23 | Fix de segurança — signup exige convite (antes qualquer anônimo se cadastrava como Root); `invites` fechada + RPC `get_invite()`; trigger `protect_profile_columns` |

@@ -9,8 +9,10 @@
  *     nunca existiu no schema (bug pré-existente descoberto ao testar a Rodada C / C1 —
  *     travava o login de qualquer usuário real, já que readStoredUser() sempre falhava);
  *     corrigido lá, no trigger handle_new_user(), não neste arquivo
- * ÚLTIMA ATUALIZAÇÃO: 2026-09-16 — Rodada C / C1: nenhuma mudança de lógica aqui além do
- *   cabeçalho — o bug real (coluna cpf ausente) foi corrigido na migration
+ *   - supabase/migrations/20260923000000_signup_requires_invite.sql — cadastro só com
+ *     convite válido; papel vem do convite (antes o cliente mandava role e virava Root)
+ * ÚLTIMA ATUALIZAÇÃO: 2026-09-23 — convite lido via RPC get_invite(); signup envia
+ *   invite_token em vez de role/invited_by; marcação do convite passou para o trigger
  */
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -32,7 +34,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [inviteRole, setInviteRole] = useState<string | null>(null);
   const [inviteId, setInviteId] = useState<string | null>(null);
-  const [invitedBy, setInvitedBy] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState('');
   const navigate = useNavigate();
@@ -45,11 +46,10 @@ export default function Login() {
       setInviteLoading(true);
       setInviteError('');
       try {
+        // invites não é legível por anônimo; get_invite() busca só o convite deste token
         const { data, error } = await supabase
-          .from('invites')
-          .select('id, role, used, invited_by, expires_at')
-          .eq('token', token)
-          .single();
+          .rpc('get_invite', { p_token: token })
+          .single<{ id: string; role: string; used: boolean; invited_by: string; expires_at: string | null }>();
 
         if (error || !data) {
           setInviteError('Convite não encontrado ou inválido.');
@@ -68,7 +68,6 @@ export default function Login() {
 
         setInviteRole(data.role);
         setInviteId(data.id);
-        setInvitedBy(data.invited_by);
       } catch (_err: unknown) {
         setInviteError('Erro ao verificar convite.');
       } finally {
@@ -101,34 +100,20 @@ export default function Login() {
         email: loginEmail,
         password,
         options: {
+          // role/invited_by vêm do convite, resolvidos pelo trigger handle_new_user() —
+          // ver migration 20260923000000_signup_requires_invite.sql
           data: {
             name,
-            role: inviteRole,
             cpf: cleanCpf,
-            invited_by: invitedBy,
+            invite_token: token,
           }
         }
       });
 
       if (signUpError) throw signUpError;
 
+      // O trigger marca o convite como usado na mesma transação do signup
       if (signUpData.user) {
-        // Marcar convite como usado
-        await supabase
-          .from('invites')
-          .update({ used: true, used_by: signUpData.user.id })
-          .eq('id', inviteId);
-
-        // Atualizar profile com invited_by (o trigger do Supabase pode já criar o profile;
-        // cpf agora é persistido pelo próprio trigger — ver migration
-        // 20260916000003_profiles_cpf_column.sql)
-        if (invitedBy) {
-          await supabase
-            .from('profiles')
-            .update({ invited_by: invitedBy })
-            .eq('id', signUpData.user.id);
-        }
-
         setSuccess('Conta criada com sucesso! Você já pode fazer login.');
         navigate('/login');
       }

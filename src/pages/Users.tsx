@@ -22,7 +22,8 @@ export default function Users() {
   const [inviteLink, setInviteLink] = useState('');
   const [copied, setCopied] = useState(false);
   const [generatingInvite, setGeneratingInvite] = useState(false);
-  const [inviteRole, setInviteRole] = useState<'Admin' | 'Motorista' | 'Root' | 'Gestor Frota'>('Motorista');
+  // Papéis aceitos por invites.role (CHECK no banco). Root não é convidável — só via SQL.
+  const [inviteRole, setInviteRole] = useState<'Operador' | 'Admin'>('Operador');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -90,23 +91,24 @@ export default function Users() {
   const generateInviteLink = async () => {
     setGeneratingInvite(true);
     try {
-      const baseUrl = window.location.origin;
-      const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      
-      // Save invite to database
-      const { error } = await supabase
+      if (!currentUser) throw new Error('Sessão expirada. Faça login novamente.');
+
+      // token (UUID) é gerado pelo banco; invited_by precisa ser o próprio usuário (RLS)
+      const { data, error } = await supabase
         .from('invites')
         .insert([
-          { 
-            token, 
-            role: inviteRole, 
-            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() 
+          {
+            role: inviteRole,
+            invited_by: currentUser.id,
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
           }
-        ]);
+        ])
+        .select('token')
+        .single();
 
       if (error) throw error;
 
-      const link = `${window.location.origin}/login?token=${token}`;
+      const link = `${window.location.origin}/login?token=${data.token}`;
       setInviteLink(link);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao gerar convite.';
@@ -176,10 +178,10 @@ export default function Users() {
                   <div className="space-y-4 mb-8">
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-500 uppercase ml-1">Nível de Acesso</label>
-                      <div className="grid grid-cols-4 gap-2">
-                        {(['Motorista', 'Gestor Frota', 'Admin', 'Root'] as const).map((r) => (
+                      <div className="grid grid-cols-2 gap-2">
+                        {([['Operador', 'Motorista'], ['Admin', 'Admin']] as const).map(([r, label]) => (
                           <button
-                            key={r}
+                            key={label}
                             onClick={() => setInviteRole(r)}
                             className={cn(
                               "py-2 rounded-lg text-xs font-bold border-2 transition-all",

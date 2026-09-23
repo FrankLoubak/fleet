@@ -2,7 +2,7 @@
  * Testes do fluxo de cadastro do Login (com token de convite)
  *
  * O Login tem dois modos: login normal e cadastro via convite (?token=...).
- * Estes testes cobrem o fluxo de cadastro.
+ * Estes testes cobrem o fluxo de cadastro. O convite é lido via supabase.rpc('get_invite').
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -24,29 +24,20 @@ vi.mock('../lib/supabase', () => ({
       signOut: vi.fn().mockResolvedValue({ error: null }),
       signUp: vi.fn().mockResolvedValue({ data: { user: { id: 'new-user-001' } }, error: null }),
     },
+    // get_invite(token) — convite válido por padrão (invites não é legível direto por anônimo)
+    rpc: vi.fn().mockImplementation(() => ({
+      single: vi.fn().mockResolvedValue({
+        data: {
+          id: 'invite-001',
+          role: 'Operador',
+          used: false,
+          invited_by: 'admin-001',
+          expires_at: null  // sem expiração
+        },
+        error: null
+      })
+    })),
     from: vi.fn().mockImplementation((table: string) => {
-      if (table === 'invites') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'invite-001',
-                  role: 'Operador',
-                  used: false,
-                  invited_by: 'admin-001',
-                  expires_at: null  // sem expiração
-                },
-                error: null
-              })
-            })
-          }),
-          update: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({ data: null, error: null })
-          })
-        };
-      }
-
       if (table === 'profiles') {
         return {
           select: vi.fn().mockReturnValue({
@@ -154,15 +145,9 @@ describe('Login — modo cadastro com token válido', () => {
   it('exibe loading enquanto verifica o convite', async () => {
     // Retarda a resposta do Supabase para verificar loading
     const { supabase } = await import('../lib/supabase');
-    vi.mocked(supabase.from).mockImplementationOnce(() => ({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockReturnValue(new Promise(() => {})), // nunca resolve
-        })
-      }),
-      update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) }),
-      insert: vi.fn().mockResolvedValue({ data: null, error: null }),
-    } as ReturnType<typeof supabase.from>));
+    vi.mocked(supabase.rpc).mockReturnValueOnce({
+      single: vi.fn().mockReturnValue(new Promise(() => {})), // nunca resolve
+    } as unknown as ReturnType<typeof supabase.rpc>);
 
     const Login = (await import('../pages/Login')).default;
     render(
@@ -180,15 +165,9 @@ describe('Login — modo cadastro com token válido', () => {
 
   it('exibe erro quando convite não é encontrado', async () => {
     const { supabase } = await import('../lib/supabase');
-    vi.mocked(supabase.from).mockImplementationOnce(() => ({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: null, error: { message: 'Not found' } }),
-        })
-      }),
-      update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) }),
-      insert: vi.fn().mockResolvedValue({ data: null, error: null }),
-    } as ReturnType<typeof supabase.from>));
+    vi.mocked(supabase.rpc).mockReturnValueOnce({
+      single: vi.fn().mockResolvedValue({ data: null, error: { message: 'Not found' } }),
+    } as unknown as ReturnType<typeof supabase.rpc>);
 
     const Login = (await import('../pages/Login')).default;
     render(
@@ -206,18 +185,12 @@ describe('Login — modo cadastro com token válido', () => {
 
   it('exibe erro quando convite já foi usado', async () => {
     const { supabase } = await import('../lib/supabase');
-    vi.mocked(supabase.from).mockImplementationOnce(() => ({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({
-            data: { id: 'invite-002', role: 'Operador', used: true, invited_by: 'admin-001', expires_at: null },
-            error: null
-          }),
-        })
+    vi.mocked(supabase.rpc).mockReturnValueOnce({
+      single: vi.fn().mockResolvedValue({
+        data: { id: 'invite-002', role: 'Operador', used: true, invited_by: 'admin-001', expires_at: null },
+        error: null
       }),
-      update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) }),
-      insert: vi.fn().mockResolvedValue({ data: null, error: null }),
-    } as ReturnType<typeof supabase.from>));
+    } as unknown as ReturnType<typeof supabase.rpc>);
 
     const Login = (await import('../pages/Login')).default;
     render(
@@ -235,22 +208,16 @@ describe('Login — modo cadastro com token válido', () => {
 
   it('exibe erro quando convite expirou', async () => {
     const { supabase } = await import('../lib/supabase');
-    vi.mocked(supabase.from).mockImplementationOnce(() => ({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({
-            data: {
-              id: 'invite-003', role: 'Admin', used: false,
-              invited_by: 'admin-001',
-              expires_at: '2020-01-01T00:00:00Z' // data no passado
-            },
-            error: null
-          }),
-        })
+    vi.mocked(supabase.rpc).mockReturnValueOnce({
+      single: vi.fn().mockResolvedValue({
+        data: {
+          id: 'invite-003', role: 'Admin', used: false,
+          invited_by: 'admin-001',
+          expires_at: '2020-01-01T00:00:00Z' // data no passado
+        },
+        error: null
       }),
-      update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) }),
-      insert: vi.fn().mockResolvedValue({ data: null, error: null }),
-    } as ReturnType<typeof supabase.from>));
+    } as unknown as ReturnType<typeof supabase.rpc>);
 
     const Login = (await import('../pages/Login')).default;
     render(
@@ -268,21 +235,15 @@ describe('Login — modo cadastro com token válido', () => {
 
   it('exibe formulário de cadastro com convite válido (role Operador)', async () => {
     const { supabase } = await import('../lib/supabase');
-    vi.mocked(supabase.from).mockImplementationOnce(() => ({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({
-            data: {
-              id: 'invite-004', role: 'Operador', used: false,
-              invited_by: 'admin-001', expires_at: null
-            },
-            error: null
-          }),
-        })
+    vi.mocked(supabase.rpc).mockReturnValueOnce({
+      single: vi.fn().mockResolvedValue({
+        data: {
+          id: 'invite-004', role: 'Operador', used: false,
+          invited_by: 'admin-001', expires_at: null
+        },
+        error: null
       }),
-      update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) }),
-      insert: vi.fn().mockResolvedValue({ data: null, error: null }),
-    } as ReturnType<typeof supabase.from>));
+    } as unknown as ReturnType<typeof supabase.rpc>);
 
     const Login = (await import('../pages/Login')).default;
     render(
@@ -300,21 +261,15 @@ describe('Login — modo cadastro com token válido', () => {
 
   it('exibe formulário de cadastro com convite válido (role Admin)', async () => {
     const { supabase } = await import('../lib/supabase');
-    vi.mocked(supabase.from).mockImplementationOnce(() => ({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({
-            data: {
-              id: 'invite-005', role: 'Admin', used: false,
-              invited_by: 'admin-001', expires_at: null
-            },
-            error: null
-          }),
-        })
+    vi.mocked(supabase.rpc).mockReturnValueOnce({
+      single: vi.fn().mockResolvedValue({
+        data: {
+          id: 'invite-005', role: 'Admin', used: false,
+          invited_by: 'admin-001', expires_at: null
+        },
+        error: null
       }),
-      update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) }),
-      insert: vi.fn().mockResolvedValue({ data: null, error: null }),
-    } as ReturnType<typeof supabase.from>));
+    } as unknown as ReturnType<typeof supabase.rpc>);
 
     const Login = (await import('../pages/Login')).default;
     render(
@@ -328,5 +283,31 @@ describe('Login — modo cadastro com token válido', () => {
     await waitFor(() => {
       expect(screen.getByText('Administrador')).toBeTruthy();
     }, { timeout: 3000 });
+  });
+});
+
+describe('Login — cadastro não envia papel', () => {
+  it('signUp envia invite_token e nunca role/invited_by (papel vem do convite no banco)', async () => {
+    const { supabase } = await import('../lib/supabase');
+    const { fireEvent } = await import('@testing-library/react');
+    const Login = (await import('../pages/Login')).default;
+    render(
+      React.createElement(
+        MemoryRouter,
+        { initialEntries: ['/login?token=invite-token-xyz'] },
+        React.createElement(Login)
+      )
+    );
+
+    const nameInput = await screen.findByPlaceholderText('Seu nome completo', {}, { timeout: 3000 });
+    fireEvent.change(nameInput, { target: { value: 'Novo Motorista' } });
+    fireEvent.change(screen.getByPlaceholderText('000.000.000-00'), { target: { value: '123.456.789-09' } });
+    fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'senha123' } });
+    fireEvent.submit(nameInput.closest('form')!);
+
+    await waitFor(() => expect(supabase.auth.signUp).toHaveBeenCalled(), { timeout: 3000 });
+    const metadata = vi.mocked(supabase.auth.signUp).mock.calls[0][0].options?.data;
+    expect(metadata).toEqual({ name: 'Novo Motorista', cpf: '12345678909', invite_token: 'invite-token-xyz' });
+    expect(metadata).not.toHaveProperty('role');
   });
 });
