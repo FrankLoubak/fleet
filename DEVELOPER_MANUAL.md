@@ -282,9 +282,10 @@ durante C1 (não cobertas pelo documento original):
    definida (nem para `vehicle_positions`/`driver_checkins`, nem para os relatórios
    exportados pelo C4). TR de referência cita 5 anos; sinalizado repetidamente (Rodadas
    B, C2, C4), nunca decidido.
-4. **Módulo de pneus sem documentação** em `DATABASE_SCHEMA.md`
-   (`vehicle_configs`/`pneus`/`movimentacoes_pneus`, migrations `20260508`/`20260509`) —
-   pré-existente à Rodada B/C, não coberto por este fechamento.
+4. ~~Módulo de pneus sem documentação~~ — **RESOLVIDO 2026-09-23**: `DATABASE_SCHEMA.md`
+   agora documenta `vehicle_configs`/`pneus`/`movimentacoes_pneus` (migrations `20260508`/
+   `20260509`), incluindo o histórico de RLS (nasceram com `USING (true)` liberado, só
+   restringido na Rodada B) e as regras de vida/reforma/sulco do pneu.
 5. **Cobertura de testes global caiu para 48.2%** (linhas) / 39.59% (funções) — abaixo
    do threshold de 60% documentado na Rodada A. **Causa raiz encontrada e corrigida
    nesta sessão:** `vitest.config.ts` usava `thresholds: { global: {...} } }`, uma chave

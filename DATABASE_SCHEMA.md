@@ -49,7 +49,7 @@ Armazena veículos e máquinas da frota.
 | prefix | TEXT | NOT NULL | — | Prefixo interno de identificação |
 | last_odometer | INTEGER | NOT NULL | `0` | Último valor de odômetro registrado |
 | created_at | TIMESTAMPTZ | NOT NULL | `NOW()` UTC | Data de criação |
-| config_id | UUID | NULL | — | FK para `vehicle_configs(id)`, `ON DELETE SET NULL` (módulo de pneus, `20260508000000_modulo_pneus.sql` — fora do escopo desta atualização de doc) |
+| config_id | UUID | NULL | — | FK para `vehicle_configs(id)`, `ON DELETE SET NULL` (módulo de pneus, ver seção [Módulo de Pneus](#módulo-de-pneus)) |
 | vehicle_type | TEXT | NOT NULL | `'veiculo'` | `'veiculo'` ou `'maquina'` (CHECK); define se a jornada valida por odômetro ou horímetro |
 | initial_odometer | INTEGER | NOT NULL | `0` | Odômetro no cadastro do veículo |
 | current_odometer | INTEGER | NOT NULL | `0` | Odômetro atual, atualizado a cada jornada |
@@ -352,6 +352,100 @@ point-in-polygon local.
 
 ---
 
+## Módulo de Pneus
+
+Pré-existente às Rodadas B/C (migrations `20260508000000_modulo_pneus.sql` e
+`20260509000000_sulco_tracking.sql`, ambas de antes da Rodada A) — nunca documentado até
+agora (pendência registrada nos breakpoints de fechamento da Rodada C). Gestão de
+pneus por veículo: cadastro de configuração de eixos, pneu individual (por número de fogo)
+e histórico de movimentações (montagem/desmontagem/conserto/sucata/medição de sulco).
+
+Hardening de RLS (leitura pública + escrita só Admin/Root, mesmo padrão das demais tabelas)
+foi aplicado só na Rodada B (`20260916000000_rls_hardening.sql`) — as tabelas nasceram com
+uma única policy `USING (true)` para todas as operações, permitindo que qualquer usuário
+autenticado (inclusive Operador) escrevesse direto pela API do Supabase.
+
+### vehicle_configs
+
+Modelos de configuração de eixos, reaproveitados por vários veículos via `vehicles.config_id`.
+
+| Coluna | Tipo | Nullable | Default | Descrição |
+|--------|------|----------|---------|-----------|
+| id | UUID | NOT NULL | `gen_random_uuid()` | PK |
+| nome | TEXT | NOT NULL | — | Nome da configuração (ex.: "Truck 6x2") |
+| eixo_1 | INTEGER | NOT NULL | — | Nº de pneus no 1º eixo (par, CHECK `>= 2 AND % 2 = 0`) |
+| eixo_2 / eixo_3 / eixo_4 | INTEGER | NULL | — | Nº de pneus nos eixos 2-4 (mesmo CHECK quando não nulo); veículo pode ter de 1 a 4 eixos |
+| pneus_reserva | INTEGER | NOT NULL | `0` | Quantidade de pneus reserva (CHECK `>= 0`) |
+| created_at | TIMESTAMPTZ | NULL | `NOW()` | Data de criação |
+
+Posições dos pneus são strings geradas em `src/utils/tirePositions.ts`, nunca uma coluna
+separada: `E{eixo}_{slot}` (ex.: `E2_DI`, slots `E`/`D` para eixo de 2 pneus, `EE/EI/DI/DE`
+para eixo de 4, etc.) ou `RESERVA_{n}` para reserva.
+
+#### RLS — vehicle_configs
+- **SELECT:** `USING (true)` — leitura pública.
+- **INSERT/UPDATE/DELETE:** `is_admin_or_root()`.
+
+### pneus
+
+Um pneu físico, identificado por número de fogo. Acompanha o ciclo de vida completo:
+compra → estoque → montado (num veículo, numa posição) → conserto → sucata, com até 2
+reformas (recapagens) intermediárias.
+
+| Coluna | Tipo | Nullable | Default | Descrição |
+|--------|------|----------|---------|-----------|
+| id | UUID | NOT NULL | `gen_random_uuid()` | PK |
+| numero_fogo | TEXT | NOT NULL | — | Identificador físico do pneu (UNIQUE) |
+| marca | TEXT | NOT NULL | — | Marca do pneu |
+| medida | TEXT | NOT NULL | — | Medida (ex.: "295/80R22.5") |
+| data_compra | DATE | NOT NULL | — | Data de compra |
+| data_1_reforma / data_2_reforma | DATE | NULL | — | Datas das reformas (recapagens); presença determina a "vida" atual (ver abaixo) |
+| km_total | NUMERIC | NOT NULL | `0` | Quilometragem acumulada do pneu |
+| status | TEXT | NOT NULL | `'estoque'` | `'estoque'`, `'montado'`, `'conserto'` ou `'sucata'` (CHECK) |
+| vehicle_id | UUID | NULL | — | FK para `vehicles(id)`, `ON DELETE SET NULL`; preenchido só quando `status = 'montado'` |
+| posicao | TEXT | NULL | — | Posição no veículo (ver formato em `vehicle_configs` acima); preenchida só quando `status = 'montado'` |
+| created_at | TIMESTAMPTZ | NULL | `NOW()` | Data de criação |
+| profundidade_sulco_1vida / _2vida / _3vida | NUMERIC | NULL | — | Profundidade de sulco (mm) medida na 1ª/2ª/3ª vida do pneu (`20260509000000_sulco_tracking.sql`) |
+| km_no_ultimo_sulco | NUMERIC | NOT NULL | `0` | KM do pneu na última medição de sulco; zerado a cada reforma |
+
+**Vida do pneu** (`derivarVida()` em `src/utils/tirePositions.ts`, só no frontend, sem
+coluna dedicada): 0 = 1ª vida (sem reforma, verde), 1 = 2ª vida (`data_1_reforma`
+preenchida, amarelo), 2 = 3ª vida (`data_2_reforma` preenchida, vermelho). Uma reforma
+grava a nova data e reseta `km_no_ultimo_sulco` para 0.
+
+#### RLS — pneus
+- **SELECT:** `USING (true)` — leitura pública.
+- **INSERT/UPDATE/DELETE:** `is_admin_or_root()`.
+
+### movimentacoes_pneus
+
+Histórico append-only de toda mudança de estado de um pneu — a UI (`Pneus.tsx`) sempre
+grava aqui além de atualizar `pneus`, nunca só uma das duas tabelas.
+
+| Coluna | Tipo | Nullable | Default | Descrição |
+|--------|------|----------|---------|-----------|
+| id | UUID | NOT NULL | `gen_random_uuid()` | PK |
+| pneu_id | UUID | NOT NULL | — | FK para `pneus(id)`, CASCADE DELETE |
+| tipo | TEXT | NOT NULL | — | `'entrada_estoque'`, `'montagem'`, `'desmontagem'`, `'saida_conserto'`, `'retorno_conserto'`, `'sucata'` ou `'medicao_sulco'` (CHECK; último tipo adicionado em `20260509000000_sulco_tracking.sql`) |
+| vehicle_id | UUID | NULL | — | FK para `vehicles(id)`, `ON DELETE SET NULL`; preenchido em movimentações de montagem/desmontagem |
+| posicao_anterior / posicao_nova | TEXT | NULL | — | Posição antes/depois da movimentação |
+| data | DATE | NOT NULL | `CURRENT_DATE` | Data da movimentação |
+| km_total_pneu | NUMERIC | NULL | — | KM do pneu no momento da movimentação |
+| houve_recape | BOOLEAN | NOT NULL | `FALSE` | Se a movimentação envolveu recapagem (reforma) |
+| observacao | TEXT | NULL | — | Observação livre |
+| user_id | UUID | NULL | — | FK para `auth.users(id)`; quem registrou a movimentação |
+| created_at | TIMESTAMPTZ | NULL | `NOW()` | Data de criação |
+| motivo_sucateamento | TEXT | NULL | — | Motivo do sucateamento, só relevante quando `tipo = 'sucata'` (`20260509000000_sulco_tracking.sql`) |
+| profundidade_sulco | NUMERIC | NULL | — | Sulco medido no momento desta movimentação específica (`20260509000000_sulco_tracking.sql`) |
+
+Índices: `idx_pneus_vehicle_id`, `idx_pneus_status`, `idx_mov_pneu_id`, `idx_mov_vehicle_id`.
+
+#### RLS — movimentacoes_pneus
+- **SELECT:** `USING (true)` — leitura pública.
+- **INSERT/UPDATE/DELETE:** `is_admin_or_root()`.
+
+---
+
 ## Regras de Negócio
 
 As regras abaixo governam a criação e encerramento de jornadas. A coluna "Implementação" indica onde a regra é verificada; "Ausente no banco" significa que não há constraint SQL correspondente — a proteção é feita somente no frontend.
@@ -385,14 +479,11 @@ As regras abaixo governam a criação e encerramento de jornadas. A coluna "Impl
 | `20260328000001_banco_de_horas_v2.sql` | 2026-03-28 | Recria `banco_de_horas` com `horas_adquiridas TEXT` ("HH:MM"); adiciona `validation_status` e `validated_by` em `journeys` |
 | `20260401000000_maintenance_updates.sql` | 2026-04-01 | Colunas extras em `maintenance_requests` (budget, documento, números de requisição) e `maintenances` (status, request_id) |
 | `20260402000000_invite_system.sql` | 2026-04-02 | Campo `invited_by` em `profiles`; atualização do CHECK de `role` para `Root/Admin/Operador`; tabela `invites` com RLS |
+| `20260508000000_modulo_pneus.sql` | 2026-05-08 | Módulo de Pneus — tabelas `vehicle_configs`, `pneus`, `movimentacoes_pneus`; coluna `vehicles.config_id`; RLS original `USING (true)` (depois restringida na Rodada B, ver abaixo) |
+| `20260509000000_sulco_tracking.sql` | 2026-05-09 | Módulo de Pneus — colunas de profundidade de sulco (`pneus.profundidade_sulco_1/2/3vida`, `km_no_ultimo_sulco`) e `movimentacoes_pneus.motivo_sucateamento`/`profundidade_sulco`; adiciona `'medicao_sulco'` ao CHECK de `tipo` |
 | `20260916000000_rls_hardening.sql` | 2026-09-16 | Rodada B — funções `is_admin_or_root()`/`is_root()`; inclui `Root` em policies que só checavam `Admin`; hardening do módulo de pneus (leitura pública + escrita Admin/Root) |
 | `20260916000001_telemetry_schema.sql` | 2026-09-16 | Rodada B — tabelas `vehicle_trackers`, `vehicle_positions` com RLS |
 | `20260916000002_driver_identification.sql` | 2026-09-16 | Rodada C / C1 — tabelas `driver_pins`, `driver_checkins`; funções `set_driver_pin()`/`verify_driver_pin()`/`record_driver_checkin()` |
 | `20260916000003_profiles_cpf_column.sql` | 2026-09-16 | Bug fix — coluna `profiles.cpf` (nunca existia), `handle_new_user()` atualizada |
 | `20260916000004_vehicles_missing_columns.sql` | 2026-09-16 | Bug fix — `vehicles.vehicle_type`/`initial_odometer`/`current_odometer`/`initial_hourmeter`/`current_hourmeter` (nunca existiam) |
 | `20260916000005_alert_engine.sql` | 2026-09-16 | Rodada C / C2 — tabelas `alert_rules`, `alert_events`, `geofences`; coluna `vehicle_positions.ignition_on` |
-
-> Migrations do módulo de pneus (`20260508000000_modulo_pneus.sql`,
-> `20260509000000_sulco_tracking.sql`) existem no repositório mas ainda não foram
-> documentadas nesta tabela nem nas seções acima — gap pré-existente, anterior às Rodadas
-> B/C, fora do escopo deste fechamento.
