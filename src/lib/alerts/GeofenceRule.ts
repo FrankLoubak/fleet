@@ -1,23 +1,19 @@
 /**
  * ARQUIVO: src/lib/alerts/GeofenceRule.ts
- * O QUE FAZ: NÃO avalia cerca eletrônica de verdade ainda — sempre retorna
- *   { triggered: false }. Existe só pra satisfazer AlertRule e permitir que o resto do
- *   app (cadastro de geofences, tela de alertas) seja construído sem esperar a
- *   integração real.
- * PARA QUE SERVE: Rodada C / C2 pede para este tipo consumir eventos de cerca JÁ
- *   CALCULADOS pela SmartGPS via webhook (não recalcular geofence localmente) —
- *   mas o formato exato do payload desse webhook está atrás do portal
- *   smartgps.com.br/docs, que exige conta/login que não temos (confirmado: só a doc
- *   pública de comandos de equipamento em wiki.smartgps.com.br está acessível, sem
- *   nenhuma página de webhooks/API). Regra do projeto (PARTE 4/C2): nunca inventar
- *   contrato de API externa — reportado ao usuário como pendência em vez de assumir um
- *   formato de payload ou implementar cálculo de point-in-polygon por conta própria sem
- *   aprovação explícita.
+ * O QUE FAZ: não avalia cerca por posição — sempre retorna { triggered: false }, de
+ *   propósito. Os eventos de cerca NÃO são calculados pelo fleet: a própria SmartGPS
+ *   detecta entrada/saída (alertas geofenceIn/geofenceOut) e o banco ingere esses
+ *   disparos direto em alert_events (rule_type 'geofence'), via pg_cron a cada minuto.
+ * PARA QUE SERVE: Rodada C / C2 pede consumir o evento de cerca JÁ CALCULADO pela
+ *   SmartGPS, não recalcular geofence localmente (decisão reconfirmada pelo usuário em
+ *   2026-09-24). Esta classe existe só para manter o contrato AlertRule; avaliar aqui
+ *   duplicaria os eventos que já chegam da SmartGPS.
  * MÓDULOS RELACIONADOS:
  *   - src/lib/alerts/AlertRule.ts — interface implementada aqui
- *   - supabase/migrations/20260916000005_alert_engine.sql — tabela geofences (schema
- *     pronto, só falta o consumo do evento real)
- * ÚLTIMA ATUALIZAÇÃO: 2026-09-16 — criação inicial (Rodada C / C2), stub pendente
+ *   - supabase/migrations/20260924000000_smartgps_sync.sql — smartgps.sync_geofence_events()
+ *     (ingestão) e smartgps.sync_positions() (posições reais); contrato da API documentado lá
+ *   - src/pages/Dashboard.tsx — card "Alertas Ativos" já exibe rule_type 'geofence'
+ * ÚLTIMA ATUALIZAÇÃO: 2026-09-24 — eventos passam a vir da SmartGPS pelo banco
  */
 
 import type { AlertEvaluation, AlertRule } from './AlertRule';

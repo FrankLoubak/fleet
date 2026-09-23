@@ -218,8 +218,9 @@ breakpoints anteriores). Ver `DEVELOPER_MANUAL.md` seção 12 para o módulo de 
 
 ### vehicle_trackers
 
-1 rastreador por veículo. Hoje só existe o mock (`provider = 'mock'`) — não há hardware
-nem credencial real instalada em nenhum veículo (ver `src/lib/telemetry/`).
+1 rastreador por veículo. `provider = 'mock'` para o simulador (`src/lib/telemetry/`) ou
+`'smartgps'` com `serial_number` = IMEI para posições reais sincronizadas pelo schema
+`smartgps` (ver "Integração SmartGPS").
 
 | Coluna | Tipo | Nullable | Default | Descrição |
 |--------|------|----------|---------|-----------|
@@ -321,6 +322,7 @@ Alertas disparados pelo motor (`src/lib/alerts/`) — velocidade, ignição ou c
 | message | TEXT | NOT NULL | — | Mensagem gerada pela regra que disparou |
 | metadata | JSONB | NULL | — | Dados extras da regra (ex.: velocidade registrada) |
 | triggered_at | TIMESTAMPTZ | NOT NULL | `now()` | Quando o alerta foi disparado |
+| external_id | TEXT | NULL | — | Id do evento no fornecedor, UNIQUE quando preenchido (ex.: `smartgps:{alertId}:{imei}:{firedAt}`) — torna a ingestão externa idempotente |
 
 #### RLS — alert_events
 - **SELECT:** mesmo padrão de `alert_rules`. **INSERT:** `is_admin_or_root()` — a
@@ -345,11 +347,33 @@ conceito de "grupo de veículos" no schema atual (é só por veículo).
 #### RLS — geofences
 - **SELECT:** mesmo padrão de `alert_rules`/`alert_events`. **ALL (escrita):** `is_admin_or_root()`.
 
-**Pendência conhecida, não decidida aqui:** `GeofenceRule` (`src/lib/alerts/GeofenceRule.ts`)
-é um stub que sempre retorna `{ triggered: false }` — o cálculo de ponto-dentro-do-círculo
-usando `geofences` ainda não está implementado, bloqueado até acesso ao portal
-`smartgps.com.br/docs` (formato do payload de webhook) ou decisão explícita por
-point-in-polygon local.
+**Eventos de cerca vêm da SmartGPS, não do fleet** (decisão de 2026-09-24): a própria
+SmartGPS detecta entrada/saída e o banco ingere os disparos em `alert_events`
+(`rule_type = 'geofence'`, `metadata.direction` = `entrada`/`saida`) — ver seção
+"Integração SmartGPS" abaixo. `GeofenceRule` continua não avaliando por posição, de
+propósito. As cercas desta tabela ainda não são espelhadas na SmartGPS: por enquanto a
+cerca e o alerta `geofenceIn`/`geofenceOut` são criados no painel deles.
+
+### Integração SmartGPS (schema `smartgps`, migration `20260924000000_smartgps_sync.sql`)
+
+Roda dentro do Postgres (`pg_cron` a cada minuto + extensão `http`), porque o frontend é
+SPA estático e a senha da SmartGPS não pode ir para o navegador. Schema privado — o
+PostgREST só expõe `public`.
+
+- `smartgps.config` (1 linha): `enabled`, `auth_mode` (`demo`/`password`), `email`,
+  token em cache, `events_cursor`, `last_run_at`, `last_error`. A senha fica no
+  `supabase_vault` (segredo `smartgps_password`), nunca nesta tabela.
+- `smartgps.sync_positions()`: veículos com `vehicle_trackers.provider = 'smartgps'`
+  (`serial_number` = IMEI) → `GET /positions/realtime` → `vehicle_positions` (sem duplicar
+  a mesma leitura).
+- `smartgps.sync_geofence_events()`: `GET /alerts/events` na janela
+  `[events_cursor − 5 min, agora]` → só `geofenceIn`/`geofenceOut`/`geofence` →
+  `alert_events`. É log de entrega por canal; um disparo vira um evento só via `external_id`.
+- `smartgps.run_sync()`: roda as duas partes isoladas (uma falha não derruba a outra) e
+  grava `last_error`. Job `smartgps-sync` no `cron.job`.
+- Ativar: `SELECT smartgps.configure('demo');` (conta demo pública, só leitura) ou
+  `SELECT smartgps.configure('password', 'email', 'senha');`. Status:
+  `SELECT last_run_at, last_error FROM smartgps.config;`
 
 ---
 
@@ -489,3 +513,4 @@ As regras abaixo governam a criação e encerramento de jornadas. A coluna "Impl
 | `20260916000004_vehicles_missing_columns.sql` | 2026-09-16 | Bug fix — `vehicles.vehicle_type`/`initial_odometer`/`current_odometer`/`initial_hourmeter`/`current_hourmeter` (nunca existiam) |
 | `20260916000005_alert_engine.sql` | 2026-09-16 | Rodada C / C2 — tabelas `alert_rules`, `alert_events`, `geofences`; coluna `vehicle_positions.ignition_on` |
 | `20260923000000_signup_requires_invite.sql` | 2026-09-23 | Fix de segurança — signup exige convite (antes qualquer anônimo se cadastrava como Root); `invites` fechada + RPC `get_invite()`; trigger `protect_profile_columns` |
+| `20260924000000_smartgps_sync.sql` | 2026-09-24 | Integração SmartGPS no banco — schema `smartgps` (pg_cron + http + vault): posições reais e eventos de cerca da SmartGPS; coluna `alert_events.external_id` |
